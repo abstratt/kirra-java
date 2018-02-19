@@ -2,11 +2,14 @@ package com.abstratt.kirra.spring.api
 
 import com.abstratt.kirra.*
 import com.abstratt.kirra.Entity
-import com.abstratt.kirra.kt.Named
+import com.abstratt.kirra.spring.Named
 import org.apache.commons.lang3.StringUtils
 import org.reflections.Reflections
 import org.reflections.util.ConfigurationBuilder
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.domain.EntityScanPackages
 import org.springframework.context.annotation.Lazy
 import org.springframework.stereotype.Component
 import java.lang.reflect.AccessibleObject
@@ -29,14 +32,19 @@ import kotlin.reflect.jvm.kotlinProperty
 @Component
 class KirraSpringSchemaBuilder : SchemaBuilder {
 
+    companion object {
+        private val logger = LoggerFactory.getLogger(KirraSpringSchemaBuilder::class.java.name)
+    }
+
     @Autowired
-    private lateinit var kirraSpringApplication: KirraSpringApplication
+    lateinit private var kirraSpringApplication : KirraSpringApplication
 
     @Autowired
     private lateinit var entityManagerFactory: EntityManagerFactory
 
     private val reflections by lazy {
-        val configuration = ConfigurationBuilder.build(kirraSpringApplication.javaPackages)
+        val entityPackageNames = kirraSpringApplication.javaPackages
+        val configuration = ConfigurationBuilder.build(entityPackageNames)
         Reflections(configuration)
     }
 

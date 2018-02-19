@@ -1,7 +1,7 @@
 package sample
 
-import com.abstratt.kirra.kt.Named
 import com.abstratt.kirra.spring.BaseEntity
+import com.abstratt.kirra.spring.Named
 import javax.persistence.*
 
 @Entity

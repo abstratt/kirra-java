@@ -16,29 +16,7 @@ import javax.ws.rs.container.ContainerResponseFilter
 import javax.ws.rs.ext.Provider
 import kotlin.reflect.KClass
 
-@Component
-@Provider
-@Lazy
-class KirraRequestFilter : ContainerRequestFilter {
-    @Throws(IOException::class)
-    override fun filter(requestContext: ContainerRequestContext) {
-        print("Request filter *******************")
-        KirraContext.setBaseURI(URI.create("/"))
-        KirraContext.setSchemaManagement(null)
-    }
-}
 
-
-@Component
-@Provider
-@Lazy
-class KirraResponseFilter : ContainerResponseFilter {
-    @Throws(IOException::class)
-    override fun filter(requestContext: ContainerRequestContext, responseContext: ContainerResponseContext) {
-        print("Response filter *******************")
-        KirraContext.setBaseURI(null)
-    }
-}
 
 /*
 @RestController
@@ -59,17 +37,7 @@ class KirraSchemaController() {
     }
 }
 */
-@Component
-@Lazy
-@ApplicationPath("/api/")
-class CustomJaxRsApplication: KirraJaxRsApplication() {
-    override fun getClasses(): MutableSet<Class<*>> {
-        val classes = LinkedHashSet(super.getClasses())
-        classes.add(KirraRequestFilter::class.java)
-        classes.add(KirraResponseFilter::class.java)
-        return classes
-    }
-}
+
 
 
 fun toPackageNames(javaClasses : Array<KClass<out BaseEntity>>) : Array<String> =

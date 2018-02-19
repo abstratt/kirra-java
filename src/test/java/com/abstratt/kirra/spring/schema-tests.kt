@@ -4,7 +4,6 @@ import com.abstratt.kirra.Relationship
 import com.abstratt.kirra.Schema
 import com.abstratt.kirra.SchemaBuilder
 import com.abstratt.kirra.TypeRef
-import com.abstratt.kirra.kt.Named
 import org.apache.commons.lang3.StringUtils
 import org.junit.Assert.*
 import org.junit.Test
