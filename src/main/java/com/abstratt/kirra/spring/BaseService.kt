@@ -3,10 +3,11 @@ package com.abstratt.kirra.spring;
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.domain.Page
 import org.springframework.data.jpa.domain.Specification
+import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.transaction.annotation.Transactional
 import kotlin.reflect.KClass
 
-abstract class BaseService<T : BaseEntity, R : BaseRepository<T>>(val entityClass: KClass<T>) {
+abstract class BaseService<T : BaseEntity, R : JpaRepository<T, Long>>(val entityClass: KClass<T>) {
     @Autowired
     lateinit var repository : R
 

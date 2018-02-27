@@ -21,20 +21,16 @@ import javax.ws.rs.container.ContainerRequestFilter
 @Lazy
 class KirraRequestFilter : ContainerRequestFilter {
     @Autowired
-    private lateinit var schemaBuilder : SchemaBuilder
-
     private lateinit var schemaManagement: SchemaManagementSnapshot
+    @Autowired
     private lateinit var instanceManagement: KirraSpringInstanceManagement
 
     @PostConstruct
     private fun init() {
-        this.schemaManagement = SchemaManagementSnapshot(schemaBuilder.build())
-        this.instanceManagement = KirraSpringInstanceManagement()
     }
     
     @Throws(IOException::class)
     override fun filter(requestContext: ContainerRequestContext) {
-        print("Request filter *******************")
         KirraContext.setBaseURI(URI.create("/"))
         KirraContext.setSchemaManagement(schemaManagement)
         KirraContext.setInstanceManagement(instanceManagement)

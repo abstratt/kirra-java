@@ -2,29 +2,29 @@ package com.abstratt.kirra.spring.api
 
 import com.abstratt.kirra.*
 import com.abstratt.kirra.Entity
+import com.abstratt.kirra.Parameter
+import com.abstratt.kirra.spring.BaseService
 import com.abstratt.kirra.spring.Named
 import org.apache.commons.lang3.StringUtils
-import org.reflections.Reflections
-import org.reflections.util.ConfigurationBuilder
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.beans.factory.annotation.Value
-import org.springframework.boot.autoconfigure.domain.EntityScanPackages
+import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.context.annotation.Lazy
 import org.springframework.stereotype.Component
-import java.lang.reflect.AccessibleObject
+import org.springframework.transaction.annotation.Transactional
 import java.lang.reflect.Field
 import java.lang.reflect.Member
 import java.lang.reflect.Method
+import java.lang.reflect.Modifier
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 import javax.persistence.*
 import javax.persistence.metamodel.*
-import kotlin.reflect.KAnnotatedElement
-import kotlin.reflect.KClass
-import kotlin.reflect.KFunction
-import kotlin.reflect.KProperty1
-import kotlin.reflect.full.cast
-import kotlin.reflect.full.findAnnotation
-import kotlin.reflect.full.functions
+import kotlin.reflect.*
+import kotlin.reflect.full.createInstance
+import kotlin.reflect.full.valueParameters
+import kotlin.reflect.jvm.javaMethod
 import kotlin.reflect.jvm.kotlinFunction
 import kotlin.reflect.jvm.kotlinProperty
 
@@ -37,36 +37,18 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
     }
 
     @Autowired
+    lateinit private var kirraSpringMetamodel: KirraSpringMetamodel
+
+    @Autowired
     lateinit private var kirraSpringApplication : KirraSpringApplication
 
     @Autowired
-    private lateinit var entityManagerFactory: EntityManagerFactory
+    private lateinit var applicationContext: ConfigurableApplicationContext
 
-    private val reflections by lazy {
-        val entityPackageNames = kirraSpringApplication.javaPackages
-        val configuration = ConfigurationBuilder.build(entityPackageNames)
-        Reflections(configuration)
-    }
-
-    private val entityClasses by lazy {
-        reflections.getTypesAnnotatedWith(javax.persistence.Entity::class.java).associateBy { it.name }
-    }
-
-    private val entitiesByPackage by lazy {
-        entityClasses.values.groupBy { it.`package`.name }
-    }
-
-    private val metamodel by lazy {
-        entityManagerFactory.metamodel
-    }
-
-    private val jpaEntities by lazy {
-        metamodel.entities.associateBy { it.name }
-    }
 
     override fun build(): Schema {
         val schema = Schema()
-        schema.namespaces = buildNamespaces(entitiesByPackage)
+        schema.namespaces = buildNamespaces(kirraSpringMetamodel.entitiesByPackage)
         return schema
     }
 
@@ -75,59 +57,96 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
     }
 
     fun buildNamespace(packageName: String, classes: List<Class<*>>): Namespace {
-        val namespace = Namespace(packageName)
+        val namespace = Namespace(kirraSpringMetamodel.packageNameToNamespace(packageName))
         namespace.entities = getEntities(namespace.name).toMutableList()
         return namespace
     }
 
     fun getEntities(namespaceName: String): Iterable<Entity> {
-        return jpaEntities.map { buildEntity(namespaceName, it.value) }
+        return kirraSpringMetamodel.jpaEntities.map { buildEntity(namespaceName, it.value) }
     }
 
     fun buildEntity(namespaceName: String, entityType: EntityType<*>): Entity {
         val newEntity = Entity()
         setName(newEntity, entityType.javaType.kotlin, { entityType.name })
-        newEntity.namespace = entityType.javaType.`package`.name
-        newEntity.properties = this.getProperties(entityType)
-        newEntity.relationships = this.getRelationships(entityType)
-        newEntity.operations = this.getOperations(entityType)
+        newEntity.namespace = namespaceName
+        newEntity.properties = this.buildProperties(entityType)
+        newEntity.relationships = this.buildRelationships(entityType)
+        val allOperations = this.buildInstanceOperations(entityType).toMutableList()
+        try {
+            val serviceClass = entityType.javaType.classLoader.loadClass(entityType.javaType.name + "Service")
+            val serviceBean = applicationContext.getBean(entityType.name.decapitalize() + "Service", serviceClass)
+            val entityOperations = serviceClass.methods.filter { Modifier.isPublic(it.modifiers) && it.kotlinFunction != null && it.declaringClass.kotlin != BaseService::class}.map { buildEntityOperation(it.kotlinFunction!!) }
+            allOperations.addAll(entityOperations)
+        } catch (e : ClassNotFoundException) {
+            // no service class
+            logger.info("No service class for {}", newEntity.typeRef)
+        }
+        newEntity.operations = allOperations
         return newEntity
     }
 
-    private fun getOperations(entityType: EntityType<*>): List<Operation>? {
-        val allFunctions = entityType.javaType.kotlin.functions
-        return allFunctions.map { buildOperation(it) }.filter { it != null }
+    private fun buildEntityOperation(serviceMethod: KFunction<*>): Operation {
+        return buildOperation(serviceMethod,false)
     }
 
-    private fun buildOperation(kotlinFunction: KFunction<*>): Operation {
+    private fun buildInstanceOperations(entityType: EntityType<*>): List<Operation> {
+        val entityFunctions = kirraSpringMetamodel.getInstanceFunctions(entityType.javaType.kotlin)
+        return entityFunctions.map { buildOperation(it as KFunction<*>, true) }.filter { it != null }
+    }
+
+    private fun buildOperation(kotlinFunction: KFunction<*>, instanceOperation : Boolean): Operation {
         val operation = Operation()
         operation.name = kotlinFunction.name
+        operation.isInstanceOperation = instanceOperation
+        operation.parameters = kotlinFunction.valueParameters.map { buildParameter(it) }
+        operation.kind = getOperationKind(kotlinFunction, instanceOperation)
         return operation
     }
 
-    private fun getRelationships(entityClass: EntityType<*>): List<Relationship> {
-        return entityClass.attributes.filter {
-            isRelationship(it)
-        }.map { this.buildRelationship(it) }
+    private fun getOperationKind(kotlinFunction: KFunction<*>, instanceOperation: Boolean): Operation.OperationKind {
+        if (instanceOperation)
+            return Operation.OperationKind.Action
+        val transactional = kotlinFunction.annotations.findAnnotationByType(Transactional::class)
+        return if (transactional?.readOnly == true) Operation.OperationKind.Finder else Operation.OperationKind.Action
     }
 
-    private fun getProperties(entityClass: EntityType<*>): List<Property> {
-        return entityClass.attributes.filter {
-            !isRelationship(it) && it is SingularAttribute && !it.isId
-        }.map { this.buildProperty(it) }
+    private fun buildParameter(kotlinParameter: KParameter): Parameter {
+        val parameter = Parameter()
+        parameter.name = kotlinParameter.name
+        parameter.direction = Parameter.Direction.In
+        parameter.typeRef = getTypeRef(KotlinParameter(kotlinParameter))
+        return parameter
     }
 
-    private fun isRelationship(attribute: Attribute<*, *>): Boolean {
-        return attribute.isAssociation || entityClasses.containsKey(attribute.javaType.name)
+    private fun buildRelationships(entityClass: EntityType<*>): List<Relationship> {
+        return kirraSpringMetamodel.getRelationships(entityClass).map { this.buildRelationship(it) }
     }
 
-    private fun buildProperty(attribute: Attribute<*, *>): Property {
+    private fun buildProperties(entityType: EntityType<*>): List<Property> {
+        val tmpObject = entityType.javaType.kotlin.createInstance()
+        return kirraSpringMetamodel.getAttributes(entityType).map { this.buildProperty(it, tmpObject) }
+    }
+
+    private fun buildProperty(attribute: Attribute<*, *>, tmpObject : Any): Property {
+        val javaMember = attribute.javaMember
+        val hasDefault = javaMember is Field && javaMember.kotlinProperty?.call(tmpObject) != null
+
         val property = Property()
         property.name = attribute.name
-        property.typeRef = getPropertyTypeRef(attribute)
+        property.typeRef = getTypeRef(KotlinProperty(attribute, (if (javaMember is Field) (javaMember.kotlinProperty!!) else (javaMember as Method).kotlinFunction!!)))
         if (property.typeRef.kind == TypeRef.TypeKind.Enumeration) {
             property.enumerationLiterals = buildPropertyEnumerationLiterals(getJavaType(attribute) as Class<Enum<*>>).associateBy { it.name }
         }
+        property.isMultiple = attribute.isMultiple()
+        property.isHasDefault = hasDefault
+        property.isInitializable = attribute.isInitializable()
+        property.isEditable = attribute.isEditable()
+        property.isRequired = attribute.isRequired()
+        property.isDerived = !property.isInitializable && !property.isEditable
+        property.isAutoGenerated = !property.isInitializable && !property.isEditable
+        property.isUnique = attribute.findAnnotationByType(Column::class)?.unique ?: false
+        property.isUserVisible = (if (javaMember is Field) javaMember.kotlinProperty?.getter?.javaMethod else javaMember)?.let { Modifier.isPublic(it.modifiers) } ?: false
         return property
     }
 
@@ -199,7 +218,7 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
     private fun findOpposite(relationship: Attribute<*, *>): Attribute<*, *>? {
         val thisClass = relationship.declaringType.javaType
         val otherType = getJavaType(relationship)
-        val otherEntity = metamodel.entity(otherType)!!
+        val otherEntity = kirraSpringMetamodel.getJpaEntity(otherType)!!
         val relationshipAnnotation = relationship.findRelationshipAnnotation()!!
         val mappedBy = relationshipAnnotation.getMappedBy()
         if (mappedBy != null) {
@@ -218,7 +237,7 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
     }
 
     private fun Annotation.getMappedBy(): String? {
-        return this.getValue(OneToMany::mappedBy)
+        return StringUtils.trimToNull(this.getValue(OneToMany::mappedBy))
     }
 
     private fun <C, T> Annotation.getValue(property: KProperty1<C, T>): T? {
@@ -227,34 +246,18 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
         return method?.invoke(this) as T?
     }
 
-
     fun getJavaType(attribute: Attribute<*, *>): Class<*> =
             if (attribute.isCollection)
                 ((attribute as CollectionAttribute<*, *>).elementType.javaType)
             else
                 attribute.javaType
 
-    private fun Attribute<*, *>.findRelationshipAnnotation(): Annotation? {
-        return javaMember.findAnnotations { it is OneToMany || it is ManyToOne || it is ManyToMany || it is OneToOne }.firstOrNull()
-    }
+    private fun Attribute<*, *>.findRelationshipAnnotation(): Annotation? =
+        javaMember.getAnnotations().findAttributeAnnotationsByType { it: Annotation -> it is OneToMany || it is ManyToOne || it is ManyToMany || it is OneToOne }.firstOrNull()
 
-    public fun Member.findAnnotations(predicate: (Annotation) -> Boolean): Collection<Annotation> =
-            (this as AccessibleObject).annotations.filter { predicate(it) }
-
-    public fun AccessibleObject.findAnnotation(annotationClass : Class<*>): Annotation? =
-            this.annotations.find { it.annotationClass == annotationClass }
-
-    private fun Attribute<*, *>.findAnnotations(predicate: (Annotation) -> Boolean): Collection<Annotation> =
-            this.javaMember.findAnnotations(predicate)
-
-    private fun <T : Annotation> Attribute<*, *>.findAnnotations(type: KClass<out T>): Collection<T> =
-            this.javaMember.findAnnotations { type.isInstance(it) }.map { type.cast(it) }
-
-    public fun <T : Annotation> Attribute<*, *>.findAnnotation(type: KClass<out T>): T? =
-            this.findAnnotations(type).firstOrNull()
 
     inline private fun <R, reified T : Annotation> Attribute<*,*>.getAnnotationValue(property: KProperty1<T, R>): R? =
-        findAnnotation(T::class)?.getValue(property)
+        findAnnotationByType(T::class)?.getValue(property)
 
 
     private fun getEntityTypeRef(attribute: Attribute<*, *>): TypeRef? =
@@ -275,25 +278,55 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
 
     private fun getTypeRef(javaType: Class<*>, kind : TypeRef.TypeKind = TypeRef.TypeKind.Entity): TypeRef {
         val javaPackage = javaType.`package`
-        return TypeRef(javaPackage.name, javaType.simpleName, kind)
+        return TypeRef(kirraSpringMetamodel.packageNameToNamespace(javaPackage.name), javaType.simpleName, kind)
     }
 
+    abstract class KotlinDataElement<T : KAnnotatedElement>(val element : T) {
+        abstract fun getJavaType() : Class<*>
+        fun getAnnotations() : Iterable<Annotation> = element.annotations
+    }
 
-    private fun getPropertyTypeRef(attribute: Attribute<*, *>): TypeRef {
-        val javaType = getJavaType(attribute)
-        val typeRef = when (javaType.simpleName) {
-            Integer::class.simpleName, Int::class.simpleName, Long::class.simpleName, "int","long"-> TypeRef("kirra" , "Integer", TypeRef.TypeKind.Primitive)
-            Float::class.simpleName, Double::class.simpleName, "double", "float" -> TypeRef("kirra" , "Double", TypeRef.TypeKind.Primitive)
-            "String" -> TypeRef("kirra" , "String", TypeRef.TypeKind.Primitive)
-            "Boolean" -> TypeRef("kirra" , "Boolean", TypeRef.TypeKind.Primitive)
+    inner class KotlinParameter(parameter : KParameter) : KotlinDataElement<KParameter>(parameter) {
+        override fun getJavaType(): Class<*> {
+            val classifier = element.type.classifier
+            return (classifier as KClass<*>).javaObjectType
+        }
+    }
+
+    inner class KotlinProperty(val attribute : Attribute<*,*>, property : KAnnotatedElement) : KotlinDataElement<KAnnotatedElement>(property) {
+        override fun getJavaType(): Class<*> = getJavaType(attribute)
+    }
+
+    private fun getTypeRef(dataElement: KotlinDataElement<*>): TypeRef {
+        val javaType = dataElement.getJavaType().kotlin
+        val typeName = javaType.qualifiedName
+        val typeRef = when (typeName) {
+            Integer::class.qualifiedName,
+            Int::class.qualifiedName,
+            Long::class.qualifiedName,
+            "int",
+            "long"
+            -> TypeRef("kirra" , "Integer", TypeRef.TypeKind.Primitive)
+            Float::class.qualifiedName,
+            Double::class.qualifiedName,
+            "double",
+            "float"
+            -> TypeRef("kirra" , "Double", TypeRef.TypeKind.Primitive)
+            String::class.qualifiedName -> TypeRef("kirra" , "String", TypeRef.TypeKind.Primitive)
+            Boolean::class.qualifiedName -> TypeRef("kirra" , "Boolean", TypeRef.TypeKind.Primitive)
+            LocalDate::class.qualifiedName -> TypeRef("kirra" , "Date", TypeRef.TypeKind.Primitive)
+            LocalDateTime::class.qualifiedName -> TypeRef("kirra" , "DateTime", TypeRef.TypeKind.Primitive)
+            LocalTime::class.qualifiedName -> TypeRef("kirra" , "Time", TypeRef.TypeKind.Primitive)
             else -> when {
-                javaType.isEnum -> getTypeRef(javaType, TypeRef.TypeKind.Enumeration)
-                attribute.findAnnotation(Lob::class) != null ->  TypeRef("kirra" , "Blob", TypeRef.TypeKind.Blob)
-                else -> getTypeRef(javaType, TypeRef.TypeKind.Tuple)
+                javaType is Enum<*> -> getTypeRef(javaType.java, TypeRef.TypeKind.Enumeration)
+                dataElement.getAnnotations().findAnnotationByType(Lob::class) != null ->  TypeRef("kirra" , "Blob", TypeRef.TypeKind.Blob)
+                javaType.isEntity() -> getTypeRef(javaType.java, TypeRef.TypeKind.Entity)
+                else -> getTypeRef(javaType.java, TypeRef.TypeKind.Tuple)
             }
         }
         return typeRef
     }
+
 
     private fun <X, Y> Attribute<X, Y>.isEditable(): Boolean =
             getAnnotationValue(Column::updatable) ?: true
@@ -311,11 +344,12 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
             this is SingularAttribute && !this.isOptional
 
     private fun setName(namedElement : NamedElement<*>, annotatedElement : KAnnotatedElement, nameProvider : () -> String) {
-        val named = annotatedElement.findAnnotation<Named>()
+        val named = annotatedElement.annotations.findAnnotationByType(Named::class)
         namedElement.description = named?.description
         namedElement.label = named?.label
         namedElement.symbol = named?.symbol
         namedElement.name = StringUtils.trimToNull(named?.name) ?: nameProvider.invoke()
     }
+
 }
 

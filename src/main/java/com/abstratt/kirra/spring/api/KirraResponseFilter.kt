@@ -20,7 +20,6 @@ import javax.ws.rs.container.ContainerResponseFilter
 class KirraResponseFilter : ContainerResponseFilter {
     @Throws(IOException::class)
     override fun filter(requestContext: ContainerRequestContext, responseContext: ContainerResponseContext) {
-        print("Response filter *******************")
         KirraContext.setBaseURI(null)
     }
 }
