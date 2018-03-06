@@ -40,5 +40,4 @@ class KirraSchemaController() {
 
 
 
-fun toPackageNames(javaClasses : Array<KClass<out BaseEntity>>) : Array<String> =
-    javaClasses.map { it.java.`package`.name }.toSet().toTypedArray()
+

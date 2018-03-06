@@ -1,13 +1,13 @@
-package com.abstratt.kirra.spring.api
+package com.abstratt.kirra.spring
 
 import com.abstratt.kirra.*
-import com.abstratt.kirra.spring.BaseEntity
-import com.abstratt.kirra.spring.BaseService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ApplicationContext
+import org.springframework.security.access.annotation.Secured
 import org.springframework.stereotype.Component
-import sun.plugin.liveconnect.SecurityContextHelper
+import kotlin.reflect.KFunction
 import kotlin.reflect.KMutableProperty
+import kotlin.reflect.KParameter
 import kotlin.reflect.full.functions
 import kotlin.reflect.full.instanceParameter
 import kotlin.reflect.full.memberProperties
@@ -27,6 +27,7 @@ class KirraSpringInstanceManagement : InstanceManagement {
     @Autowired
     private lateinit var schemaManagement: SchemaManagement
 
+    @Secured
     override fun createInstance(instance: Instance): Instance {
         val asEntity : BaseEntity = fromInstance(instance)
         val asService : BaseService<BaseEntity,*> = getEntityService(instance.typeRef)
@@ -105,20 +106,31 @@ class KirraSpringInstanceManagement : InstanceManagement {
     override fun executeOperation(operation: Operation, externalId: String?, arguments: MutableList<*>?): MutableList<*> {
         val kirraEntity = schemaManagement.getEntity(operation.owner)
         val entityClass : Class<BaseEntity> = kirraSpringMetamodel.getEntityClass(kirraEntity.entityNamespace, kirraEntity.name)!!
-        if (externalId != null) {
-            TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-        }
         val service = getEntityService(operation.owner)
-        val serviceClass = entityClass.classLoader.loadClass(entityClass.name + "Service").kotlin
-        val serviceOperation = serviceClass.functions.find { it.name == operation.name }!!
-        val matchedArguments = arguments!!.mapIndexed { i, argument -> Pair(operation.parameters[i].name, mapArgumentToJava(operation.parameters[i], argument))}.toMap()
+
+        if (externalId != null) {
+            val targetJavaInstance = service.findById(externalId.toLong())
+            //val entityInstanceOperation = BoundFunction(targetJavaInstance, entityClass.kotlin.functions.find { it.name == operation.name }!!)
+        }
+
+
+        val functionDefiningClass = if (externalId != null) entityClass.kotlin else entityClass.classLoader.loadClass(entityClass.name + "Service").kotlin
+        val javaInstance: Any? = if (externalId != null) service.findById(externalId.toLong()) else service
+
+        BusinessException.ensure(javaInstance != null, ErrorCode.UNKNOWN_OBJECT)
+
+        val function = BoundFunction(javaInstance!!, functionDefiningClass.functions.find { it.name == operation.name }!!)
+        val matchedArguments = arguments!!.mapIndexed { i, argument -> Pair(operation.parameters[i].name, mapKirraValueToJava(operation.parameters[i], argument))}.toMap()
         val kotlinMatchedArguments = matchedArguments.map {
-            val parameter = serviceOperation.valueParameters.find { p -> p.name == it.key }
+            val parameter = function.valueParameters.find { p -> p.name == it.key }
             KirraException.ensure(parameter != null, KirraException.Kind.ELEMENT_NOT_FOUND, { "Missing parameter: ${it.key}" })
             Pair(parameter!!, it.value)
         }.toMap()
-        val allArgs = mapOf(Pair(serviceOperation.instanceParameter!!, service)) + kotlinMatchedArguments
-        val result = serviceOperation.callBy(allArgs)
+        val result = function.callBy(kotlinMatchedArguments)
+
+        if (javaInstance is BaseEntity) {
+            service.update(javaInstance)
+        }
         return if (result == null)
             emptyList<Any>().toMutableList()
         else if (result is Iterable<*>)
@@ -127,21 +139,42 @@ class KirraSpringInstanceManagement : InstanceManagement {
             listOf(result).toMutableList()
     }
 
-    private fun mapArgumentToJava(parameter: Parameter, argument: Any?): Any? {
-        if (parameter.typeRef.kind == TypeRef.TypeKind.Entity) {
-            val entityClass = kirraSpringMetamodel.getEntityClass(parameter.typeRef)
-            if (entityClass != null && (argument is Instance || argument is InstanceRef)) {
+    private fun mapJavaValueToKirra(element: TypedElement<*>, javaValue: Any?) : Any? {
+        if (element.typeRef.kind == TypeRef.TypeKind.Entity) {
+            val entityClass = kirraSpringMetamodel.getEntityClass(element.typeRef)
+            if (entityClass != null && javaValue is BaseEntity) {
+                return InstanceRef(element.typeRef.entityNamespace, element.typeRef.typeName, javaValue.id.toString())
+            }
+            return null
+        }
+        if (element.typeRef.kind == TypeRef.TypeKind.Enumeration) {
+            if (javaValue is StateMachine<*,*,*>) {
+                return javaValue.state?.name
+            }
+            if (javaValue is Enum<*>) {
+                return javaValue.name
+            }
+            return null
+        }
+        return javaValue
+    }
+
+
+    private fun mapKirraValueToJava(element: TypedElement<*>, kirraValue: Any?) : Any? {
+        if (element.typeRef.kind == TypeRef.TypeKind.Entity) {
+            val entityClass = kirraSpringMetamodel.getEntityClass(element.typeRef)
+            if (entityClass != null && (kirraValue is Instance || kirraValue is InstanceRef)) {
                 val jpaInstance = entityClass.newInstance()
-                val objectId : String? = when (argument) {
-                    is Instance -> argument.objectId
-                    is InstanceRef -> argument.objectId
+                val objectId : String? = when (kirraValue) {
+                    is Instance -> kirraValue.objectId
+                    is InstanceRef -> kirraValue.objectId
                     else -> null
                 }
                 jpaInstance.id = objectId?.toLong()
                 return jpaInstance
             }
         }
-        return argument
+        return kirraValue
     }
 
     override fun getParameterDomain(entity: Entity?, externalId: String?, action: Operation?, parameter: Parameter?): MutableList<Instance> {
@@ -156,20 +189,44 @@ class KirraSpringInstanceManagement : InstanceManagement {
 
     private fun <E : BaseEntity> fromInstance(newInstance: Instance) : E {
         val kirraEntity = schemaManagement.getEntity(newInstance.typeRef)
-        val javaClass : Class<E> = kirraSpringMetamodel.getEntityClass(newInstance.entityNamespace, newInstance.entityName)!! as Class<E>
-        val entityType = kirraSpringMetamodel.getJpaEntity(javaClass)!!
-        val asEntity = javaClass.newInstance() as E
+        val entityClass = kirraSpringMetamodel.getEntityClass(newInstance.typeRef)!!
+        val entityType = kirraSpringMetamodel.getJpaEntity(entityClass)!!
+        val asEntity : E = getJavaInstance(newInstance)!!
         newInstance.values.forEach { propertyName : String, propertyValue : Any? ->
-            val entityProperty = javaClass.kotlin.memberProperties.find { it.name == propertyName }
+            val kirraProperty = kirraEntity.getProperty(propertyName)
+            val entityProperty = entityClass.kotlin.memberProperties.find { it.name == propertyName }
             if (entityProperty is KMutableProperty<*>) {
-                entityProperty.setter.call(asEntity, propertyValue)
+                val javaValue = mapKirraValueToJava(kirraProperty, propertyValue)
+                entityProperty.setter.call(asEntity, javaValue)
+            }
+        }
+        newInstance.links.forEach { propertyName : String, instanceRef : Instance? ->
+            val entityProperty = entityClass.kotlin.memberProperties.find { it.name == propertyName }
+            if (entityProperty is KMutableProperty<*>) {
+                val relatedInstance : BaseEntity? = getJavaInstance(instanceRef)
+                entityProperty.setter.call(asEntity, relatedInstance)
             }
         }
         return asEntity
     }
 
+    private fun <E : BaseEntity> getJavaInstance(newInstance: Instance?) : E? {
+        if (newInstance == null) {
+            return null
+        }
+        val javaClass = kirraSpringMetamodel.getEntityClass(newInstance.entityNamespace, newInstance.entityName)!! as Class<E>
+        val javaInstance = javaClass.newInstance()
+        if (!newInstance.isNew) {
+            javaInstance.id = newInstance.objectId.toLong()
+        }
+        return javaInstance
+    }
+
     private fun <E : BaseEntity> toInstance(newInstance: E) : Instance {
         // convert Java class instance to Kirra instance
+        val entityTypeRef = kirraSpringMetamodel.getTypeRef(newInstance::class.java)
+        val kirraEntity = schemaManagement.getEntity(entityTypeRef)
+
         val entityType = kirraSpringMetamodel.getJpaEntity(newInstance.javaClass)!!
         val attributes = kirraSpringMetamodel.getAttributes(entityType)
 
@@ -177,8 +234,10 @@ class KirraSpringInstanceManagement : InstanceManagement {
         val instance =  Instance(kirraSpringMetamodel.getTypeRef(newInstance.javaClass), null)
         attributes.forEach {
             val ktProperty = properties[it.name]!!
+            val kirraProperty = kirraEntity.getProperty(it.name)
             val propertyValue = ktProperty.call(newInstance)
-            instance.setValue(it.name, propertyValue)
+            val javaValue = mapJavaValueToKirra(kirraProperty, propertyValue)
+            instance.setValue(it.name, javaValue)
         }
         instance.objectId = newInstance.id?.let { it.toString() }
          return instance
@@ -205,4 +264,15 @@ class KirraSpringInstanceManagement : InstanceManagement {
     }
 
 
+}
+
+class BoundFunction<R>(val instance : Any, val baseFunction : KFunction<R>) : KFunction<R> by baseFunction {
+    override fun call(vararg args: Any?): R =
+            baseFunction.call(*(listOf(instance) + args.asList()).toTypedArray())
+
+    override fun callBy(args: Map<KParameter, Any?>): R =
+            baseFunction.callBy(mapOf(Pair(baseFunction.instanceParameter!!, instance)) + args)
+
+    override val parameters: List<KParameter>
+        get() = listOf(baseFunction.instanceParameter!!) + baseFunction.parameters
 }

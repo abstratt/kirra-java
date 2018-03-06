@@ -108,6 +108,11 @@
             <version>${spring-boot.version}</version>
         </dependency>
         <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+            <version>${spring-boot.version}</version>
+        </dependency>
+        <dependency>
             <groupId>javax.ws.rs</groupId>
             <artifactId>javax.ws.rs-api</artifactId>
             <version>2.0</version>
@@ -126,6 +131,11 @@
             <groupId>org.hibernate</groupId>
             <artifactId>hibernate-entitymanager</artifactId>
             <version>${hibernate.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>javax.servlet-api</artifactId>
+            <version>3.1.0</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
@@ -164,6 +174,14 @@
                         <id>compile</id>
                         <goals> <goal>compile</goal> </goals>
                         <configuration>
+                            <compilerPlugins>
+                                <plugin>no-arg</plugin>
+                                <plugin>all-open</plugin>
+                                <plugin>spring</plugin>
+                                <plugin>jpa</plugin>
+                            </compilerPlugins>
+                            <pluginOptions>
+                            </pluginOptions>
                             <sourceDirs>
                                 <sourceDir>src/main/java</sourceDir>
                             </sourceDirs>
@@ -179,6 +197,18 @@
                         </configuration>
                     </execution>
                 </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.jetbrains.kotlin</groupId>
+                        <artifactId>kotlin-maven-noarg</artifactId>
+                        <version>${kotlin.version}</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>org.jetbrains.kotlin</groupId>
+                        <artifactId>kotlin-maven-allopen</artifactId>
+                        <version>${kotlin.version}</version>
+                    </dependency>
+                </dependencies>
             </plugin>  
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

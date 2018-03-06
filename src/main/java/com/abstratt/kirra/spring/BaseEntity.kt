@@ -1,5 +1,4 @@
-package com.abstratt.kirra.spring;
-
+package com.abstratt.kirra.spring
 
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;

@@ -2,41 +2,38 @@ package com.abstratt.kirra.spring
 
 import com.abstratt.kirra.Relationship
 import com.abstratt.kirra.Schema
-import com.abstratt.kirra.SchemaBuilder
 import com.abstratt.kirra.TypeRef
+import com.abstratt.kirra.spring.testing.sample.*
 import org.apache.commons.lang3.StringUtils
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner
-import sample.*
 import kotlin.reflect.full.findAnnotation
 
 
 @RunWith(SpringJUnit4ClassRunner::class)
-@ActiveProfiles(value = "integration")
 @ContextConfiguration(classes = arrayOf(TestConfig::class))
 class SchemaTests {
 
     @Autowired
-    private lateinit var schemaBuilder: SchemaBuilder
+    private lateinit var schema: Schema
 
-    private val schema: Schema by lazy {
-        schemaBuilder.build()
-    }
-
+    @Autowired
+    private lateinit var kirraSpringMetamodel : KirraSpringMetamodel
 
     /**
-     * Ensures we can find entity classes in the classpath.
+     * Ensures we can find constraint classes in the classpath.
      */
     @Test
     fun testClassScanning() {
         val namespaces = schema.namespaces
-        assertEquals(1, namespaces.size)
+        assertEquals(2, namespaces.size)
+        namespaces.sortBy { it.name }
         assertEquals("sample", namespaces[0].name)
+        assertEquals("user", namespaces[1].name)
         val entities = namespaces[0].entities
         assertTrue(entities.size >= 1)
         val order = entities.find { it.name == Person::class.simpleName }
@@ -48,7 +45,8 @@ class SchemaTests {
         val entity = schema.allEntities.find { it.name == Person::class.simpleName }
         assertNotNull(entity)
         val personEntity = entity!!
-        assertEquals(TypeRef(Person::class.java.`package`.name, Person::class.simpleName, TypeRef.TypeKind.Entity), personEntity.typeRef)
+        val expectedTypeRef = kirraSpringMetamodel.getTypeRef(Person::class.java, TypeRef.TypeKind.Entity)
+        assertEquals(expectedTypeRef, personEntity.typeRef)
         assertEquals("sample", personEntity.entityNamespace)
         val properties = personEntity.properties
         assertEquals(1, properties.size)
@@ -73,8 +71,8 @@ class SchemaTests {
         val accountType = accountEntity.getProperty(Account::type.name)
         assertNotNull(accountType)
         assertEquals(TypeRef.TypeKind.Enumeration, accountType.typeRef.kind)
-        assertEquals(TypeRef(AccountType::class.java.`package`.name, AccountType::class.simpleName, TypeRef.TypeKind.Enumeration), accountType.typeRef)
-        assertEquals(AccountType::class.simpleName, accountType.typeRef.typeName)
+        val expectedEnumeration = kirraSpringMetamodel.getTypeRef(AccountType::class.java, TypeRef.TypeKind.Enumeration)
+        assertEquals(expectedEnumeration, accountType.typeRef)
         assertEquals(listOf("Checking", "Savings"), accountType.enumerationLiterals.map { it.key })
     }
 

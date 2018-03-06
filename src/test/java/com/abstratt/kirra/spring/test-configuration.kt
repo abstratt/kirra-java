@@ -1,44 +1,31 @@
 package com.abstratt.kirra.spring
 
-import com.abstratt.kirra.KirraApplication
-import com.abstratt.kirra.spring.api.KirraSpringApplication
+import com.abstratt.kirra.spring.api.KirraSpringAPIMarker
 import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.Configuration
-import org.springframework.context.annotation.Profile
 import org.springframework.context.annotation.Bean
 import org.springframework.orm.jpa.LocalEntityManagerFactoryBean
-import org.hibernate.cfg.AvailableSettings.DIALECT
-import org.hibernate.cfg.AvailableSettings.MULTI_TENANT_IDENTIFIER_RESOLVER
-import org.hibernate.cfg.AvailableSettings.MULTI_TENANT_CONNECTION_PROVIDER
-import org.hibernate.MultiTenancyStrategy
-import org.hibernate.cfg.AvailableSettings.MULTI_TENANT
 import org.hibernate.cfg.Environment
 import org.hibernate.dialect.PostgreSQL92Dialect
 import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter
-import org.springframework.orm.jpa.JpaVendorAdapter
 import org.hibernate.jpa.HibernatePersistenceProvider
-import sample.Order
-import sample.Person
+import org.springframework.boot.autoconfigure.domain.EntityScan
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories
+import com.abstratt.kirra.spring.testing.sample.SampleMarker
+import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean
 import java.util.*
-import kotlin.reflect.KClass
 
 
 @Configuration
-@Profile("integration")
-@ComponentScan(basePackages = arrayOf("com.abstratt.kirra.spring"))
+@ComponentScan(basePackageClasses = [KirraSpringMarker::class, KirraSpringAPIMarker::class, SampleMarker::class])
+@EntityScan(basePackageClasses = [KirraSpringMarker::class, KirraSpringAPIMarker::class,SampleMarker::class])
+@EnableJpaRepositories(basePackageClasses = [KirraSpringMarker::class, KirraSpringAPIMarker::class,SampleMarker::class])
 open class TestConfig {
-    open val kirraSpringApplication : KirraSpringApplication
     @Bean
-    get() {
-        val entityClasses : Array<KClass<out BaseEntity>> = arrayOf(Order::class, Person::class)
-        return KirraSpringApplication("test", entityClasses)
-    }
-
-    @Bean
-    open fun entityManagerFactory() : LocalEntityManagerFactoryBean {
-        val em = LocalEntityManagerFactoryBean()
+    open fun entityManagerFactory() : LocalContainerEntityManagerFactoryBean {
+        val em = LocalContainerEntityManagerFactoryBean()
+        em.setPackagesToScan(SampleMarker::class.java.`package`.name, KirraSpringMarker::class.java.`package`.name)
         em.persistenceProvider = HibernatePersistenceProvider()
-        em.persistenceUnitName = "test"
         val vendorAdapter = HibernateJpaVendorAdapter()
         em.jpaVendorAdapter = vendorAdapter
         val properties = Properties()

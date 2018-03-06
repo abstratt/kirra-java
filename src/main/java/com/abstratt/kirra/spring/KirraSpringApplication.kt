@@ -1,7 +1,8 @@
-package com.abstratt.kirra.spring.api;
+package com.abstratt.kirra.spring;
 
 import com.abstratt.kirra.KirraApplication
 import com.abstratt.kirra.spring.BaseEntity
+import com.abstratt.kirra.spring.toPackageNames
 import org.reflections.util.ConfigurationBuilder
 import org.springframework.beans.factory.BeanFactory
 import org.springframework.beans.factory.annotation.Autowired

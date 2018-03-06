@@ -7,9 +7,9 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.transaction.annotation.Transactional
 import kotlin.reflect.KClass
 
-abstract class BaseService<T : BaseEntity, R : JpaRepository<T, Long>>(val entityClass: KClass<T>) {
+abstract class BaseService<T : BaseEntity, R : JpaRepository<T, Long>>(open val entityClass: KClass<T>) {
     @Autowired
-    lateinit var repository : R
+    lateinit open var repository : R
 
     open fun findById(id: Long): T? {
         return repository.findById(id).orElse(null)

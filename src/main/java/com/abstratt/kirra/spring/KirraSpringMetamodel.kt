@@ -1,7 +1,6 @@
-package com.abstratt.kirra.spring.api
+package com.abstratt.kirra.spring
 
 import com.abstratt.kirra.TypeRef
-import com.abstratt.kirra.spring.BaseEntity
 import org.reflections.Reflections
 import org.reflections.util.ConfigurationBuilder
 import org.springframework.beans.factory.annotation.Autowired
@@ -96,8 +95,8 @@ class KirraSpringMetamodel {
             !it.isImplementationMethod() && it.visibility == KVisibility.PUBLIC && it.javaMethod?.declaringClass?.kotlin?.isService() ?: false
 
 
-    fun <E> getTypeRef(javaClass: Class<E>): TypeRef =
-            TypeRef(packageNameToNamespace(javaClass.`package`.name), javaClass.simpleName, TypeRef.TypeKind.Entity)
+    fun <E> getTypeRef(javaClass: Class<E>, kind : TypeRef.TypeKind = TypeRef.TypeKind.Entity): TypeRef =
+            TypeRef(packageNameToNamespace(javaClass.`package`.name), javaClass.simpleName, kind)
 }
 
 

@@ -2,7 +2,7 @@ package com.abstratt.kirra.spring.api;
 
 import com.abstratt.kirra.rest.resources.KirraJaxRsApplication
 import org.springframework.context.annotation.Lazy
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Component
 
 import javax.ws.rs.ApplicationPath;
 

@@ -1,9 +1,8 @@
 package com.abstratt.kirra.spring.api;
 
-import com.abstratt.kirra.Schema
-import com.abstratt.kirra.SchemaBuilder
 import com.abstratt.kirra.SchemaManagementSnapshot
 import com.abstratt.kirra.rest.common.KirraContext
+import com.abstratt.kirra.spring.KirraSpringInstanceManagement
 import org.springframework.beans.factory.annotation.Autowired
 import kotlin.jvm.Throws;
 import org.springframework.context.annotation.Lazy;

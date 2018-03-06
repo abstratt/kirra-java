@@ -1,8 +1,10 @@
-package sample
+package com.abstratt.kirra.spring.testing.sample
 
 import com.abstratt.kirra.spring.BaseEntity
 import com.abstratt.kirra.spring.Named
 import javax.persistence.*
+
+interface SampleMarker
 
 @Entity
 @Named(description = "Products that can be added to a car")
@@ -49,25 +51,25 @@ class Person(
 
 @Entity
 class Transfer(
-    override var id: Long? = null,
-    @ManyToOne
-    var source : Account?,
-    @ManyToOne
-    var destination : Account?
+        override var id: Long? = null,
+        @ManyToOne
+    var source : Account? = null,
+        @ManyToOne
+    var destination : Account? = null
 ) : BaseEntity(id)
 
 @Entity
 class Account(
-    override var id: Long? = null,
-    @ManyToOne
-    var owner : Person?,
-    var balance : Double,
-    @OneToMany(mappedBy="source")
-    var sent : Collection<Transfer>,
-    @OneToMany(mappedBy="destination")
-    var received : Collection<Transfer>,
-    @Enumerated(value = EnumType.STRING)
-    var type : AccountType
+        override var id: Long? = null,
+        @ManyToOne
+    var owner : Person? = null,
+        var balance : Double? = null,
+        @OneToMany(mappedBy="source")
+    var sent : Collection<Transfer>? = null,
+        @OneToMany(mappedBy="destination")
+    var received : Collection<Transfer>? = null,
+        @Enumerated(value = EnumType.STRING)
+    var type : AccountType? = null
 ) : BaseEntity(id)
 
 enum class AccountType {
