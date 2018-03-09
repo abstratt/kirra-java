@@ -50,6 +50,7 @@ open class KirraSpringConfiguration {
         if (existingService == null) {
             logger.info("Creating service for for ${entity.name}")
             val entityJavaClass = kirraSpringMetamodel.getEntityClass(entity.entityNamespace, entity.name)
+            assert(entityJavaClass != null, { "No entity class for ${entity.typeRef}"})
             val entityClass : KClass<BaseEntity> = entityJavaClass!!.kotlin
             val genericService = GenericService(entityClass)
             val repository =
