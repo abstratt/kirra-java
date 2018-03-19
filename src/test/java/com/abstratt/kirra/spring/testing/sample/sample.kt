@@ -2,6 +2,7 @@ package com.abstratt.kirra.spring.testing.sample
 
 import com.abstratt.kirra.spring.BaseEntity
 import com.abstratt.kirra.spring.Named
+import com.abstratt.kirra.spring.user.RoleEntity
 import javax.persistence.*
 
 interface SampleMarker
@@ -42,12 +43,11 @@ class Order(override var id: Long? = null) : BaseEntity(id) {
 }
 
 @Entity
-class Person(
+abstract class Person(
     override var id: Long? = null,
     @Column(unique = true)
     var name: String? = null
-) : BaseEntity(id)
-
+) : BaseEntity(id), RoleEntity
 
 @Entity
 class Transfer(

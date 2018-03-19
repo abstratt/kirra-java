@@ -12,8 +12,10 @@ import javax.ws.rs.ext.Provider;
 import java.io.IOException;
 import java.net.URI
 import javax.annotation.PostConstruct
+import javax.servlet.http.HttpServletRequest
 import javax.ws.rs.container.ContainerRequestContext
 import javax.ws.rs.container.ContainerRequestFilter
+import javax.ws.rs.core.Context
 
 @Component
 @Provider
@@ -24,13 +26,19 @@ class KirraRequestFilter : ContainerRequestFilter {
     @Autowired
     private lateinit var instanceManagement: KirraSpringInstanceManagement
 
+    @Context
+    private lateinit var servletRequest: HttpServletRequest
+
+
     @PostConstruct
     private fun init() {
     }
     
     @Throws(IOException::class)
     override fun filter(requestContext: ContainerRequestContext) {
-        KirraContext.setBaseURI(URI.create("/"))
+        val requestUri = requestContext.uriInfo.requestUri
+        val baseUri = URI.create(this.servletRequest!!.requestURI)
+        KirraContext.setBaseURI(baseUri)
         KirraContext.setSchemaManagement(schemaManagement)
         KirraContext.setInstanceManagement(instanceManagement)
     }

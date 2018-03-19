@@ -1,6 +1,7 @@
 package com.abstratt.kirra.spring.user
 
 import com.abstratt.kirra.spring.*
+import org.springframework.data.jpa.repository.Query
 import org.springframework.security.core.GrantedAuthority
 import org.springframework.stereotype.Repository
 import org.springframework.stereotype.Service
@@ -9,10 +10,17 @@ import javax.persistence.Entity
 @Target(AnnotationTarget.CLASS)
 annotation class Role
 
-interface RoleEntity
+interface RoleEntity {
+    var user : ApplicationUser?
+    fun getRole() : UserRole
+}
 
 interface UserRole {
+    fun toAuthority() : String = "ROLE_${(this as Enum<*>).name}"
+}
 
+interface RoleRepository<E : RoleEntity> {
+    fun findByApplicationUserUsername(username : String)
 }
 
 @Entity

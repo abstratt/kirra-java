@@ -91,7 +91,7 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
 
     private fun buildInstanceOperations(entityType: EntityType<*>): List<Operation> {
         val entityFunctions = kirraSpringMetamodel.getInstanceFunctions(entityType.javaType.kotlin)
-        return entityFunctions.map { buildOperation(it as KFunction<*>, true) }.filter { it != null }
+        return entityFunctions.map { buildOperation(it as KFunction<*>, true) }
     }
 
     private fun buildOperation(kotlinFunction: KFunction<*>, instanceOperation : Boolean): Operation {
