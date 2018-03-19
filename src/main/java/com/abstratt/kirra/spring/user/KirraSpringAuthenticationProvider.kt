@@ -11,7 +11,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.stereotype.Component
 
 @Component
-class KirraSpringAuthenticationProvider : AuthenticationProvider{
+class KirraSpringAuthenticationProvider : AuthenticationProvider {
     @Autowired
     lateinit var applicationUserService: ApplicationUserService
 
@@ -30,9 +30,9 @@ class KirraSpringAuthenticationProvider : AuthenticationProvider{
         if (found == null) {
             throw BadCredentialsException("Bad credentials")
         }
-        val authorities = kirraJavaApplication.applicationUserRoles.map { it.toAuthority() }
+        val authorities = kirraJavaApplication.applicationUserRoles.map { it.toGrantedAuthority() }
 
-        val successfulAuthentication = UsernamePasswordAuthenticationToken(username, password, authorities.map { SimpleGrantedAuthority(it) })
+        val successfulAuthentication = UsernamePasswordAuthenticationToken(username, password, authorities)
         return successfulAuthentication
     }
 }

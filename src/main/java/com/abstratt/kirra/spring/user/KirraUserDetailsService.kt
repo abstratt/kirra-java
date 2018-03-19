@@ -13,10 +13,12 @@ import java.util.Optional.ofNullable
 class KirraUserDetailsService : UserDetailsService {
     @Autowired
     lateinit var applicationUserService: ApplicationUserService
+    @Autowired
+    lateinit var roleService: RoleService
 
     override fun loadUserByUsername(username: String): KirraUserDetails =
             ofNullable(applicationUserService.findUserByUsername(username))
-                    .map { it.toUserDetails() }
+                    .map { roleService.toUserDetails(it) }
                     .orElseThrow { UsernameNotFoundException(username) }
 }
 

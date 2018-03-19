@@ -47,7 +47,7 @@ abstract class Person(
     override var id: Long? = null,
     @Column(unique = true)
     var name: String? = null
-) : BaseEntity(id), RoleEntity
+) : RoleEntity(id)
 
 @Entity
 class Transfer(

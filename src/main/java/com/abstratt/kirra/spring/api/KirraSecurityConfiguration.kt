@@ -32,7 +32,7 @@ open class KirraSecurityConfiguration : WebSecurityConfigurerAdapter() {
                 .userDetailsService(userDetailsService)
                 .authorizeRequests()
                     .antMatchers("/**")
-                    .hasAnyAuthority(*(kirraJavaApplication.applicationUserRoles.map { it.toAuthority() }.toTypedArray()))
+                    .hasAnyAuthority(*(kirraJavaApplication.applicationUserRoles.map { it.toAuthorityName() }.toTypedArray()))
                 .and()
                     .httpBasic()
                 .and()

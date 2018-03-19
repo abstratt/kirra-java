@@ -2,6 +2,8 @@ package com.abstratt.kirra.spring
 
 import com.abstratt.kirra.*
 import com.abstratt.kirra.spring.user.ApplicationUserService
+import com.abstratt.kirra.spring.user.RoleService
+import javafx.application.Application
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ApplicationContext
 import org.springframework.security.access.annotation.Secured
@@ -30,7 +32,10 @@ class KirraSpringInstanceManagement : InstanceManagement {
     private lateinit var schemaManagement: SchemaManagement
 
     @Autowired
-    private lateinit var applicationUserService: ApplicationUserService
+    private lateinit var applicationUserService : ApplicationUserService
+
+    @Autowired
+    private lateinit var roleService: RoleService
 
     @Secured
     override fun createInstance(instance: Instance): Instance {
@@ -88,8 +93,17 @@ class KirraSpringInstanceManagement : InstanceManagement {
         return principal?.let { applicationUserService.findUserByUsername(it)?.toInstance() }
     }
 
-    override fun getCurrentUserRoles(): MutableList<Instance> {
-        return emptyList<Instance>().toMutableList()
+    override fun getCurrentUserRoles(): List<Instance> {
+        val principal = SecurityContextHolder.getContext().authentication?.principal as? String
+        if (principal == null) {
+            return emptyList<Instance>().toMutableList()
+        }
+        val currentUser = applicationUserService.findUserByUsername(principal)
+        if (currentUser == null) {
+            return emptyList<Instance>()
+        }
+        val roles = roleService.findRoleObjects(currentUser)
+        return roles.map { it.toInstance() }
     }
 
     override fun filterInstances(criteria : MutableMap<String, MutableList<Any>>?, namespace : String, name : String, profile : InstanceManagement.DataProfile?): MutableList<Instance> {

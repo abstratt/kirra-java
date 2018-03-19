@@ -1,26 +1,33 @@
 package com.abstratt.kirra.spring.user
 
 import com.abstratt.kirra.spring.*
-import org.springframework.data.jpa.repository.Query
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.security.core.GrantedAuthority
+import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.stereotype.Repository
 import org.springframework.stereotype.Service
-import javax.persistence.Entity
+import javax.persistence.*
 
 @Target(AnnotationTarget.CLASS)
 annotation class Role
 
-interface RoleEntity {
-    var user : ApplicationUser?
-    fun getRole() : UserRole
+@MappedSuperclass
+abstract class RoleEntity(
+    id : Long?,
+    @ManyToOne
+    var user : ApplicationUser? = null
+) : BaseEntity(id) {
+    abstract fun getRole() : UserRole
 }
 
 interface UserRole {
-    fun toAuthority() : String = "ROLE_${(this as Enum<*>).name}"
+    fun toAuthorityName() : String = "ROLE_${(this as Enum<*>).name}"
+    fun toGrantedAuthority() : GrantedAuthority = SimpleGrantedAuthority(toAuthorityName())
+    fun roleName() : String
 }
 
 interface RoleRepository<E : RoleEntity> {
-    fun findByApplicationUserUsername(username : String)
+    fun findByUser(user : ApplicationUser) : E?
 }
 
 @Entity
@@ -28,24 +35,53 @@ class ApplicationUser(
         id: Long? = null,
         var username: String? = null,
         var password: String? = null
+//        @OneToMany(mappedBy = "user", targetEntity = RoleEntity::class)
+//        var roles : Set<RoleEntity>
 ) : BaseEntity(id) {
+
     fun updatePassword(newPassword : String) {
         password = newPassword
     }
     fun readPassword() : String? =
             password
 
+/*
     fun toUserDetails(): KirraUserDetails =
             KirraUserDetails(this.id!!, this.username!!, this.readPassword()!!, this.authorities())
 
     fun authorities(): List<GrantedAuthority> =
-            emptyList()
+            listOf()
+*/
 
+}
+
+@Service
+open class RoleService {
+    @Autowired
+    lateinit var kirraJavaApplication: KirraJavaApplication
+
+    @Autowired
+    lateinit var kirraRepositoryRegistry: KirraRepositoryRegistry
+
+    fun findAuthorities(user : ApplicationUser): List<GrantedAuthority> =
+            findRoleObjects(user).map { it.getRole().toGrantedAuthority() }
+
+    fun findRoleObjects(user : ApplicationUser): List<RoleEntity> =
+            kirraJavaApplication.applicationUserRoles.map { asRole<RoleEntity>(user, it) }.filterNotNull()
+
+    fun <RE: RoleEntity> asRole(user : ApplicationUser, role : UserRole) : RE? {
+        val roleRepository = kirraRepositoryRegistry.getRepository<RoleEntity>(role.roleName()) as? RoleRepository<RE>
+        return roleRepository?.findByUser(user)
+    }
+
+    fun toUserDetails(user : ApplicationUser): KirraUserDetails =
+            KirraUserDetails(user.id!!, user.username!!, user.readPassword()!!, findAuthorities(user))
 }
 
 
 @Service
 open class ApplicationUserService : BaseService<ApplicationUser, ApplicationUserRepository>(ApplicationUser::class) {
+
     fun findUserByUsername(username: String) = repository.findByUsername(username)
 
     fun findUserByUsernameAndPassword(username: String, password: String) = repository.findByUsernameAndPassword(username, password)
@@ -66,8 +102,6 @@ open class ApplicationUserService : BaseService<ApplicationUser, ApplicationUser
         return super.create(toCreate)
     }
 }
-
-
 
 @Repository
 interface ApplicationUserRepository : BaseRepository<ApplicationUser> {
