@@ -1,11 +1,22 @@
 package com.abstratt.kirra.spring.testing.sample
 
 import com.abstratt.kirra.spring.BaseEntity
+import com.abstratt.kirra.spring.KirraJavaApplication
 import com.abstratt.kirra.spring.Named
 import com.abstratt.kirra.spring.user.RoleEntity
+import com.abstratt.kirra.spring.user.UserRole
+import org.springframework.boot.autoconfigure.SpringBootApplication
 import javax.persistence.*
 
 interface SampleMarker
+
+@SpringBootApplication
+open class ExpensesApplication : KirraJavaApplication(emptySet())
+
+
+enum class SampleRole : UserRole {
+    Customer, Employee;
+}
 
 @Entity
 @Named(description = "Products that can be added to a car")
@@ -14,6 +25,8 @@ class Product : BaseEntity() {
     var name : String? = null
     @Column(nullable = false)
     var price : Double? = null
+    @Column(nullable = true)
+    var category : String? = null
 }
 
 @Entity
@@ -31,7 +44,7 @@ class OrderItem (
 @Entity
 class Order(override var id: Long? = null) : BaseEntity(id) {
     @ManyToOne(cascade = arrayOf(CascadeType.ALL), optional = false)
-    var customer : Person? = null
+    var customer : Customer? = null
     @OneToMany(orphanRemoval = true, mappedBy = "order")
     var items : MutableCollection<OrderItem> = ArrayList()
 
@@ -49,6 +62,17 @@ abstract class Person(
     var name: String? = null
 ) : RoleEntity(id)
 
+
+@Entity
+class Employee : Person() {
+    override fun getRole(): UserRole = SampleRole.Employee
+}
+
+@Entity
+class Customer : Person() {
+    override fun getRole(): UserRole = SampleRole.Customer
+}
+
 @Entity
 class Transfer(
         override var id: Long? = null,
@@ -62,7 +86,7 @@ class Transfer(
 class Account(
         override var id: Long? = null,
         @ManyToOne
-    var owner : Person? = null,
+    var owner : Customer? = null,
         var balance : Double? = null,
         @OneToMany(mappedBy="source")
     var sent : Collection<Transfer>? = null,

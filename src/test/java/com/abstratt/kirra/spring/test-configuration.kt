@@ -12,6 +12,8 @@ import org.hibernate.jpa.HibernatePersistenceProvider
 import org.springframework.boot.autoconfigure.domain.EntityScan
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 import com.abstratt.kirra.spring.testing.sample.SampleMarker
+import org.springframework.context.annotation.PropertySource
+import org.springframework.context.support.PropertySourcesPlaceholderConfigurer
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean
 import java.util.*
 
@@ -20,6 +22,7 @@ import java.util.*
 @ComponentScan(basePackageClasses = [KirraSpringMarker::class, KirraSpringAPIMarker::class, SampleMarker::class])
 @EntityScan(basePackageClasses = [KirraSpringMarker::class, KirraSpringAPIMarker::class,SampleMarker::class])
 @EnableJpaRepositories(basePackageClasses = [KirraSpringMarker::class, KirraSpringAPIMarker::class,SampleMarker::class])
+@PropertySource("classpath:application.properties")
 open class TestConfig {
     @Bean
     open fun entityManagerFactory() : LocalContainerEntityManagerFactoryBean {
@@ -32,6 +35,11 @@ open class TestConfig {
         properties[Environment.DIALECT] = PostgreSQL92Dialect::class.java.name
         em.setJpaProperties(properties)
         return em
+    }
+
+    @Bean
+    open fun propertySourcesPlaceholderConfigurer(): PropertySourcesPlaceholderConfigurer {
+        return PropertySourcesPlaceholderConfigurer()
     }
 }
 

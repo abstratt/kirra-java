@@ -9,6 +9,7 @@ import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner
 import kotlin.reflect.full.findAnnotation
@@ -36,24 +37,38 @@ class SchemaTests {
         assertEquals("user", namespaces[1].name)
         val entities = namespaces[0].entities
         assertTrue(entities.size >= 1)
-        val order = entities.find { it.name == Person::class.simpleName }
+        val order = entities.find { it.name == Order::class.simpleName }
         assertNotNull(order)
     }
 
     @Test
     fun testEntity() {
-        val entity = schema.allEntities.find { it.name == Person::class.simpleName }
+        val entity = schema.allEntities.find { it.name == Product::class.simpleName }
         assertNotNull(entity)
-        val personEntity = entity!!
-        val expectedTypeRef = kirraSpringMetamodel.getTypeRef(Person::class.java, TypeRef.TypeKind.Entity)
-        assertEquals(expectedTypeRef, personEntity.typeRef)
-        assertEquals("sample", personEntity.entityNamespace)
-        val properties = personEntity.properties
-        assertEquals(1, properties.size)
-        assertEquals(Person::name.name, properties[0].name)
-        assertEquals("String", properties[0].type)
-        assertEquals(TypeRef.TypeKind.Primitive, properties[0].typeRef.kind)
-        assertEquals("kirra.String", properties[0].typeRef.fullName)
+        val productEntity = entity!!
+        val expectedTypeRef = kirraSpringMetamodel.getTypeRef(Product::class.java, TypeRef.TypeKind.Entity)
+        assertEquals(expectedTypeRef, productEntity.typeRef)
+        assertEquals("sample", productEntity.entityNamespace)
+        val properties = productEntity.properties
+        assertEquals(3, properties.size)
+
+        val nameProperty = properties.find { it.name == Product::name.name }!!
+        assertEquals("String", nameProperty.type)
+        assertEquals(TypeRef.TypeKind.Primitive, nameProperty.typeRef.kind)
+        assertEquals("kirra.String", nameProperty.typeRef.fullName)
+        assertTrue(nameProperty.isRequired)
+
+        val priceProperty = properties.find { it.name == Product::price.name }!!
+        assertEquals("Double", priceProperty.type)
+        assertEquals(TypeRef.TypeKind.Primitive, priceProperty.typeRef.kind)
+        assertEquals("kirra.Double", priceProperty.typeRef.fullName)
+        assertTrue(priceProperty.isRequired)
+
+        val categoryProperty = properties.find { it.name == Product::category.name }!!
+        assertEquals("String", categoryProperty.type)
+        assertEquals(TypeRef.TypeKind.Primitive, categoryProperty.typeRef.kind)
+        assertEquals("kirra.String", categoryProperty.typeRef.fullName)
+        assertFalse(categoryProperty.isRequired)
     }
 
     @Test
@@ -80,7 +95,7 @@ class SchemaTests {
     @Test
     fun testRelationship_OrderCustomer() {
         val order = schema.allEntities.find { it.name == Order::class.simpleName }!!
-        val person = schema.allEntities.find { it.name == Person::class.simpleName }!!
+        val person = schema.allEntities.find { it.name == Customer::class.simpleName }!!
         val customerRelationship = order.relationships.find { it.name == Order::customer.name }!!
         assertEquals(person.typeRef, customerRelationship.typeRef)
         assertTrue(customerRelationship.isRequired)

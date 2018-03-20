@@ -23,7 +23,12 @@ abstract class RoleEntity(
 interface UserRole {
     fun toAuthorityName() : String = "ROLE_${(this as Enum<*>).name}"
     fun toGrantedAuthority() : GrantedAuthority = SimpleGrantedAuthority(toAuthorityName())
-    fun roleName() : String
+    fun roleName() : String {
+        if (this is Enum<*>) {
+            this.name
+        }
+        return this::class.simpleName!!
+    }
 }
 
 interface RoleRepository<E : RoleEntity> {
