@@ -1,5 +1,6 @@
 package com.abstratt.kirra.spring
 
+import com.abstratt.kirra.Operation
 import com.abstratt.kirra.Relationship
 import com.abstratt.kirra.Schema
 import com.abstratt.kirra.TypeRef
@@ -49,7 +50,13 @@ class SchemaTests {
         val expectedTypeRef = kirraSpringMetamodel.getTypeRef(Product::class.java, TypeRef.TypeKind.Entity)
         assertEquals(expectedTypeRef, productEntity.typeRef)
         assertEquals("sample", productEntity.entityNamespace)
-        val properties = productEntity.properties
+    }
+
+    @Test
+    fun testProperties() {
+        val entity = schema.allEntities.find { it.name == Product::class.simpleName }
+        assertNotNull(entity)
+        val properties = entity!!.properties
         assertEquals(3, properties.size)
 
         val nameProperty = properties.find { it.name == Product::name.name }!!
@@ -70,6 +77,21 @@ class SchemaTests {
         assertEquals("kirra.String", categoryProperty.typeRef.fullName)
         assertFalse(categoryProperty.isRequired)
     }
+
+    @Test
+    fun testQueries() {
+        val entity = schema.allEntities.find { it.name == Order::class.simpleName }
+        assertNotNull(entity)
+        val entityOperations = entity!!.operations
+
+        val queries = entityOperations.filter { it.kind == Operation.OperationKind.Finder }
+        assertEquals(1, queries.size)
+
+        val byStatusQuery = queries.find { it.name == OrderService::byStatus.name }
+        assertNotNull(byStatusQuery)
+    }
+
+
 
     @Test
     fun testNamed() {
@@ -106,7 +128,10 @@ class SchemaTests {
     @Test
     fun testInstanceAction() {
         val order = schema.allEntities.find { it.name == Order::class.simpleName }!!
-        val addItemAction = order.operations.find { it.name == Order::addItem.name }!!
+        val addItemAction = order.operations.find { it.name == Order::addItem.name }
+        assertNotNull(addItemAction)
+        assertTrue(addItemAction!!.isInstanceOperation)
+        assertEquals(Operation.OperationKind.Action, addItemAction!!.kind)
     }
 
 

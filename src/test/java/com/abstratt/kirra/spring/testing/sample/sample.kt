@@ -1,11 +1,13 @@
 package com.abstratt.kirra.spring.testing.sample
 
-import com.abstratt.kirra.spring.BaseEntity
-import com.abstratt.kirra.spring.KirraJavaApplication
-import com.abstratt.kirra.spring.Named
+import com.abstratt.kirra.spring.*
 import com.abstratt.kirra.spring.user.RoleEntity
 import com.abstratt.kirra.spring.user.UserRole
 import org.springframework.boot.autoconfigure.SpringBootApplication
+import org.springframework.data.domain.Page
+import org.springframework.stereotype.Repository
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import javax.persistence.*
 
 interface SampleMarker
@@ -41,10 +43,18 @@ class OrderItem(
     val price get() = (this.product?.price ?: 0.0) * (this.quantity ?: 0)
 }
 
+enum class OrderStatus {
+    Open, Closed, Canceled
+}
+
 @Entity
 class Order(override var id: Long? = null) : BaseEntity(id) {
+    @Enumerated(EnumType.STRING)
+    var status : OrderStatus? = OrderStatus.Open
+
     @ManyToOne(cascade = arrayOf(CascadeType.ALL), optional = false)
     var customer: Customer? = null
+
     @OneToMany(orphanRemoval = true, mappedBy = "order")
     var items: MutableCollection<OrderItem> = ArrayList()
 
@@ -53,6 +63,17 @@ class Order(override var id: Long? = null) : BaseEntity(id) {
         items.add(newItem)
         return newItem
     }
+}
+
+@Repository
+interface OrderRepository : BaseRepository<Order> {
+    fun findAllByStatus(toMatch : OrderStatus) : Iterable<Order>
+}
+
+@Service
+open class OrderService : BaseService<Order, OrderRepository>(Order::class) {
+    @QueryOperation
+    open fun byStatus(toMatch : OrderStatus) = repository.findAllByStatus(toMatch)
 }
 
 @Entity

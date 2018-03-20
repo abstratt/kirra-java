@@ -107,8 +107,17 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
     private fun getOperationKind(kotlinFunction: KFunction<*>, instanceOperation: Boolean): Operation.OperationKind {
         if (instanceOperation)
             return Operation.OperationKind.Action
+        if (kotlinFunction.annotations.findAnnotationByType(QueryOperation::class) != null) {
+            return Operation.OperationKind.Finder
+        }
+        if (kotlinFunction.annotations.findAnnotationByType(ActionOperation::class) != null) {
+            return Operation.OperationKind.Action
+        }
         val transactional = kotlinFunction.annotations.findAnnotationByType(Transactional::class)
-        return if (transactional?.readOnly == true) Operation.OperationKind.Finder else Operation.OperationKind.Action
+        if (transactional != null) {
+            return if (transactional.readOnly == true) Operation.OperationKind.Finder else Operation.OperationKind.Action
+        }
+        return Operation.OperationKind.Action
     }
 
     private fun buildParameter(kotlinParameter: KParameter): Parameter {

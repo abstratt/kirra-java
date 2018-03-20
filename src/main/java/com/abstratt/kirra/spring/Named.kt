@@ -6,3 +6,9 @@ annotation class Named (
         val name : String = "",
         val symbol : String = ""
 )
+
+@Target(AnnotationTarget.FUNCTION)
+annotation class ActionOperation
+
+@Target(AnnotationTarget.FUNCTION)
+annotation class QueryOperation

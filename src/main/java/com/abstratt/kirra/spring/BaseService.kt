@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.transaction.annotation.Transactional
 import kotlin.reflect.KClass
 
+abstract class GenericBaseService<T : BaseEntity>(entityClass: KClass<T>) : BaseService<T, BaseRepository<T>>(entityClass)
+
 abstract class BaseService<T : BaseEntity, R : JpaRepository<T, Long>>(open val entityClass: KClass<T>) {
     @Autowired
     lateinit open var repository : R
