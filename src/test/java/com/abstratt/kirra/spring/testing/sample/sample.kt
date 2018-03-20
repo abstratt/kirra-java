@@ -70,6 +70,9 @@ class Employee : Person() {
 
 @Entity
 class Customer : Person() {
+    @OneToMany(orphanRemoval = false, mappedBy = "customer")
+    var orders: MutableCollection<Order> = ArrayList()
+
     override fun getRole(): UserRole = SampleRole.Customer
 }
 
