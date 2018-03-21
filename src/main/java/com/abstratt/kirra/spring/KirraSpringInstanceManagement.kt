@@ -123,9 +123,24 @@ class KirraSpringInstanceManagement : InstanceManagement {
         return false
     }
 
+    override fun executeQuery(operation: Operation, externalId: String?, arguments: MutableList<*>?, pageRequest: InstanceManagement.PageRequest?): MutableList<*> {
+        val (service, javaInstance: Any?, result) = doExecuteOperation(operation, externalId, arguments)
+        return result
+    }
+
     override fun executeOperation(operation: Operation, externalId: String?, arguments: MutableList<*>?): MutableList<*> {
+        val (service, javaInstance: Any?, result) = doExecuteOperation(operation, externalId, arguments)
+
+        if (javaInstance is BaseEntity) {
+            service.update(javaInstance)
+        }
+
+        return result
+    }
+
+    private fun doExecuteOperation(operation: Operation, externalId: String?, arguments: MutableList<*>?): Triple<BaseService<BaseEntity, *>, Any?, MutableList<*>> {
         val kirraEntity = schemaManagement.getEntity(operation.owner)
-        val entityClass : Class<BaseEntity> = kirraSpringMetamodel.getEntityClass(kirraEntity.entityNamespace, kirraEntity.name)!!
+        val entityClass: Class<BaseEntity> = kirraSpringMetamodel.getEntityClass(kirraEntity.entityNamespace, kirraEntity.name)!!
         val service = getEntityService(operation.owner)
 
         if (externalId != null) {
@@ -133,30 +148,29 @@ class KirraSpringInstanceManagement : InstanceManagement {
             //val entityInstanceOperation = BoundFunction(targetJavaInstance, entityClass.kotlin.functions.find { it.name == operation.name }!!)
         }
 
-
         val functionDefiningClass = if (externalId != null) entityClass.kotlin else entityClass.classLoader.loadClass(entityClass.name + "Service").kotlin
         val javaInstance: Any? = if (externalId != null) service.findById(externalId.toLong()) else service
 
         BusinessException.ensure(javaInstance != null, ErrorCode.UNKNOWN_OBJECT)
 
         val function = BoundFunction(javaInstance!!, functionDefiningClass.functions.find { it.name == operation.name }!!)
-        val matchedArguments = arguments!!.mapIndexed { i, argument -> Pair(operation.parameters[i].name, mapKirraValueToJava(operation.parameters[i], argument))}.toMap()
+        val matchedArguments = arguments!!.mapIndexed { i, argument -> Pair(operation.parameters[i].name, mapKirraValueToJava(operation.parameters[i], argument)) }.toMap()
         val kotlinMatchedArguments = matchedArguments.map {
             val parameter = function.valueParameters.find { p -> p.name == it.key }
             KirraException.ensure(parameter != null, KirraException.Kind.ELEMENT_NOT_FOUND, { "Missing parameter: ${it.key}" })
             Pair(parameter!!, it.value)
         }.toMap()
-        val result = function.callBy(kotlinMatchedArguments)
 
-        if (javaInstance is BaseEntity) {
-            service.update(javaInstance)
-        }
-        return if (result == null)
+        val callResult = function.callBy(kotlinMatchedArguments)
+        val asList = if (callResult == null)
             emptyList<Any>().toMutableList()
-        else if (result is Iterable<*>)
-            result.toMutableList()
+        else if (callResult is Iterable<*>)
+            callResult.toMutableList()
         else
-            listOf(result).toMutableList()
+            listOf(callResult).toMutableList()
+        val result = asList.map { if (it is BaseEntity) it.toInstance() else it }.toMutableList()
+
+        return Triple(service, javaInstance, result)
     }
 
     private fun mapJavaValueToKirra(element: TypedElement<*>, javaValue: Any?) : Any? {
@@ -168,8 +182,8 @@ class KirraSpringInstanceManagement : InstanceManagement {
             return null
         }
         if (element.typeRef.kind == TypeRef.TypeKind.Enumeration) {
-            if (javaValue is StateMachine<*,*,*>) {
-                return javaValue.state?.name
+            if (javaValue is StateMachine<*,*>) {
+                return javaValue.context?.getState()?.name
             }
             if (javaValue is Enum<*>) {
                 return javaValue.name
@@ -192,6 +206,12 @@ class KirraSpringInstanceManagement : InstanceManagement {
                 }
                 jpaInstance.id = objectId?.toLong()
                 return jpaInstance
+            }
+        } else if (element.typeRef.kind == TypeRef.TypeKind.Enumeration) {
+            val enumClass = kirraSpringMetamodel.getEnumClass(element.typeRef)
+            if (enumClass != null) {
+                val result = enumClass.enumConstants.find { it.name == kirraValue }
+                return result
             }
         }
         return kirraValue

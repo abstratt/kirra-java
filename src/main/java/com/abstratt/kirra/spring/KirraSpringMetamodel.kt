@@ -69,6 +69,18 @@ class KirraSpringMetamodel {
     }
     fun getEntityClass(typeRef: TypeRef) = getEntityClass(typeRef.namespace, typeRef.typeName)
 
+    fun getEnumClass(typeRef: TypeRef) : Class<Enum<*>>? {
+        val packageName = namespaceToPackageName(typeRef.namespace)
+        val enumClassName = "${packageName}.${typeRef.typeName.replace('+', '$')}"
+        try {
+            val enumClass = Class.forName(enumClassName) as Class<Enum<*>>
+            return enumClass
+        } catch (e : ClassNotFoundException) {
+            return null
+        }
+    }
+
+
     fun <T> getAttributes(entityClass : EntityType<T>) =
         entityClass.attributes.filter {
             !isRelationship(it) && it is SingularAttribute && !it.isId

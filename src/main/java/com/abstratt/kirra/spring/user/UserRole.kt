@@ -25,7 +25,7 @@ interface UserRole {
     fun toGrantedAuthority() : GrantedAuthority = SimpleGrantedAuthority(toAuthorityName())
     fun roleName() : String {
         if (this is Enum<*>) {
-            this.name
+            return this.name
         }
         return this::class.simpleName!!
     }

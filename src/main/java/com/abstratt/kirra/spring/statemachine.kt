@@ -1,8 +1,5 @@
 package com.abstratt.kirra.spring
 
-import java.sql.Date
-import java.time.LocalDate
-import javax.persistence.*
 import kotlin.reflect.KClass
 
 /**
@@ -12,72 +9,74 @@ import kotlin.reflect.KClass
  *
  * A transition defines a source state and a destination state, a set of trigger events, and an optional guard predicate, and an optional effect behavior.
  */
-@MappedSuperclass
-
-abstract class StateMachine<ST : StateToken, C : StateContext<ST>, SMC : StateMachineConfiguration<ST, C>>(
-    initialState : ST,
-    @Enumerated(EnumType.STRING)
-    var state: ST? = initialState
+class StateMachine<ST : StateToken, C : StateContext<ST>>(
+    val context : C
 ) {
     inline fun <reified ST : StateToken> getTokenType() : KClass<ST> = ST::class
 
-    abstract fun configuration() : SMC
-
     fun publish(context : C, event: StateEvent) : Boolean {
-        val triggered = configuration().transitions()?.filter {
-            it.from == state && it.isEligible(event) && it.tryToActivate(context)
+        val state = currentState()
+        val triggered = context.stateMachineConfiguration().transitions?.filter {
+            it.from == context.getState() && it.isEligible(event) && it.tryToActivate(this as StateMachine<ST, StateContext<ST>>)
         }?.isNotEmpty() ?: false
         return triggered
     }
 
-    fun current(context : C): State<ST, C>? = context.stateMachine.state?.let { getState(context, it ) }
+    fun currentState(): State<ST>? = context.getState()?.let { findState(it) }
 
-    fun getState(context : C, token : ST) : State<ST, C>? = configuration().states()?.find { it.token == token }?.let { it as State<ST, C> }
+    fun findState(token : ST) : State<ST>? = context.stateMachineConfiguration().states?.find { it.token == token }?.let { it as State<ST> }
+    fun advance(to: ST) = context.setState(to)
 }
 
 
 /**
- * SCmething that has a state.
+ * Something that has a state.
  */
 interface StateContext<ST : StateToken> {
-    val stateMachine : StateMachine<ST, StateContext<ST>, StateMachineConfiguration<ST,StateContext<ST>>>
-    val current : State<ST, StateContext<ST>>? get() = stateMachine.current(this)
+    fun getState() : ST?
+    fun setState(newState : ST?)
+    fun stateMachineConfiguration() : StateMachineConfiguration<ST>
+    fun stateMachine() : StateMachine<ST, StateContext<ST>> =
+        StateMachine(this)
 }
 
-interface StateMachineConfiguration<ST : StateToken, SC : StateContext<ST>> {
-    fun states() : Array<State<ST, SC>>
-    fun transitions() : Array<Transition<ST, SC>>
-}
-
+class StateMachineConfiguration<ST : StateToken> (
+    val states : Array<State<ST>>,
+    val transitions : Array<Transition<ST>>
+)
 
 interface StateEvent
 
-class State<out ST : StateToken, C : StateContext<out ST>> (
+class State<out ST : StateToken> (
         val token : ST,
-        val onEntry : ((C) -> Unit)? = null,
-        val onExit : ((C) -> Unit)? = null
+        val onEntry : (() -> Unit)? = null,
+        val onExit : (() -> Unit)? = null
 )
 
 interface StateToken {
     val name : String
 }
 
-class Transition<ST : StateToken, SC : StateContext<ST>>(
+fun <ST : StateToken> KClass<ST>.initial(): ST? =
+    if (this.java.isEnum) this.java.enumConstants?.first() else null
+
+
+class Transition<ST : StateToken>(
         val from : ST,
         val to : ST,
         val triggers : Iterable<StateEvent>,
-        val guard : ((SC) -> Boolean)? = null,
-        val effect : ((SC) -> Unit)? = null
+        val guard : (() -> Boolean)? = null,
+        val effect : (() -> Unit)? = null
 ) {
     fun isEligible(event : StateEvent) = triggers.contains(event)
-    fun tryToActivate(context : SC) : Boolean {
-        if (!(guard?.invoke(context) ?: false)) {
+    fun tryToActivate(stateMachine: StateMachine<ST, *>) : Boolean {
+        if (!(guard?.invoke() ?: false)) {
             return false
         }
-        context.current?.onEntry?.invoke(context)
-        effect?.invoke(context)
-        context.stateMachine.state = this.to
-        context.current?.onExit?.invoke(context)
+        stateMachine.currentState()?.onEntry?.invoke()
+        effect?.invoke()
+        stateMachine.advance(this.to)
+        stateMachine.currentState()?.onExit?.invoke()
         return true
     }
 }

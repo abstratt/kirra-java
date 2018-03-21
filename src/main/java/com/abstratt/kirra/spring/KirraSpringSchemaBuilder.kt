@@ -7,6 +7,7 @@ import org.apache.commons.lang3.StringUtils
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ConfigurableApplicationContext
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import java.lang.reflect.*
@@ -19,6 +20,7 @@ import javax.persistence.metamodel.Type
 import kotlin.reflect.*
 import kotlin.reflect.full.createInstance
 import kotlin.reflect.full.valueParameters
+import kotlin.reflect.full.withNullability
 import kotlin.reflect.jvm.javaMethod
 import kotlin.reflect.jvm.kotlinFunction
 import kotlin.reflect.jvm.kotlinProperty
@@ -98,10 +100,19 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
         val operation = Operation()
         operation.name = kotlinFunction.name
         operation.isInstanceOperation = instanceOperation
-        operation.parameters = kotlinFunction.valueParameters.map { buildParameter(it) }
+        operation.parameters = kotlinFunction.valueParameters.filter { !isInternalParameter(it) }.map { buildParameter(it) }
         operation.kind = getOperationKind(kotlinFunction, instanceOperation)
         logger.info("Built operation ${operation.name} from ${kotlinFunction}")
         return operation
+    }
+
+    private fun isInternalParameter(toCheck : KParameter) : Boolean {
+        val parameterType = toCheck.type.withNullability(false)
+        val isInternal = when (parameterType.classifier) {
+            Pageable::class -> true
+            else -> false
+        }
+        return isInternal
     }
 
     private fun getOperationKind(kotlinFunction: KFunction<*>, instanceOperation: Boolean): Operation.OperationKind {
@@ -316,7 +327,8 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
 
     private fun getTypeRef(javaType: Class<*>, kind : TypeRef.TypeKind = TypeRef.TypeKind.Entity): TypeRef {
         val javaPackage = javaType.`package`
-        return TypeRef(kirraSpringMetamodel.packageNameToNamespace(javaPackage.name), javaType.simpleName, kind)
+        val simpleName = if (javaType.isMemberClass) (javaType.enclosingClass.simpleName + "+" + javaType.simpleName) else javaType.simpleName
+        return TypeRef(kirraSpringMetamodel.packageNameToNamespace(javaPackage.name), simpleName, kind)
     }
 
     abstract class KotlinDataElement<T : KAnnotatedElement>(val element : T) {
