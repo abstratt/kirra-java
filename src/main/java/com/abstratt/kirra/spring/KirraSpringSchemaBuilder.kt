@@ -3,6 +3,7 @@ package com.abstratt.kirra.spring
 import com.abstratt.kirra.*
 import com.abstratt.kirra.Entity
 import com.abstratt.kirra.Parameter
+import com.abstratt.kirra.statemachine.StateMachine
 import org.apache.commons.lang3.StringUtils
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired

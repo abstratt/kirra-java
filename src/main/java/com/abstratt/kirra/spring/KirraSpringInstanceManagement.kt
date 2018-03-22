@@ -3,7 +3,7 @@ package com.abstratt.kirra.spring
 import com.abstratt.kirra.*
 import com.abstratt.kirra.spring.user.ApplicationUserService
 import com.abstratt.kirra.spring.user.RoleService
-import javafx.application.Application
+import com.abstratt.kirra.statemachine.StateMachine
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ApplicationContext
 import org.springframework.security.access.annotation.Secured
@@ -182,8 +182,8 @@ class KirraSpringInstanceManagement : InstanceManagement {
             return null
         }
         if (element.typeRef.kind == TypeRef.TypeKind.Enumeration) {
-            if (javaValue is StateMachine<*,*>) {
-                return javaValue.context?.getState()?.name
+            if (javaValue is StateMachine<*, *, *>) {
+                return javaValue.currentStateToken?.name
             }
             if (javaValue is Enum<*>) {
                 return javaValue.name
