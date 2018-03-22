@@ -29,11 +29,9 @@ class StateMachine<ST : StateToken, C : StateContext<ST>>(
     fun currentState(): State<ST>? = context.getState()?.let { findState(it) }
 
     fun findState(token : ST) : State<ST>? = 
-        context
-            .stateMachineConfiguration()
-            .states?
-            .find { it.token == token }?
-            .let { it as State<ST> }
+        context.stateMachineConfiguration().states
+            ?.find { it.token == token }
+            ?.let { it as State<ST> }
     
     fun advance(to: ST) = 
         context.setState(to)
