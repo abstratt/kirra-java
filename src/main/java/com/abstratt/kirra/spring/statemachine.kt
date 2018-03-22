@@ -19,15 +19,24 @@ class StateMachine<ST : StateToken, C : StateContext<ST>>(
     fun publish(context : C, event: StateEvent) : Boolean {
         val state = currentState()
         val triggered = context.stateMachineConfiguration().transitions?.filter {
-            it.from == context.getState() && it.isEligible(event) && it.tryToActivate(this as StateMachine<ST, StateContext<ST>>)
+            it.from == context.getState() && 
+            it.isEligible(event) && 
+            it.tryToActivate(this as StateMachine<ST, StateContext<ST>>)
         }?.isNotEmpty() ?: false
         return triggered
     }
 
     fun currentState(): State<ST>? = context.getState()?.let { findState(it) }
 
-    fun findState(token : ST) : State<ST>? = context.stateMachineConfiguration().states?.find { it.token == token }?.let { it as State<ST> }
-    fun advance(to: ST) = context.setState(to)
+    fun findState(token : ST) : State<ST>? = 
+        context
+            .stateMachineConfiguration()
+            .states?
+            .find { it.token == token }?
+            .let { it as State<ST> }
+    
+    fun advance(to: ST) = 
+        context.setState(to)
 }
 
 
