@@ -7,7 +7,9 @@ import kotlin.reflect.KClass
  *
  * A state defines an optional pair of entry and exit behaviors.
  *
- * A transition defines a source state and a destination state, a set of trigger events, and an optional guard predicate, and an optional effect behavior.
+ * A transition defines a source state and a destination state, 
+ * a set of trigger events, an optional guard predicate, 
+ * and an optional effect behavior.
  */
 class StateMachine<ST : StateToken, C : StateContext<ST>>(
     val context : C
