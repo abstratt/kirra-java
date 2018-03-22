@@ -24,42 +24,42 @@ interface AccessConstraints {
         rule.asIterable().toMap()
 }
 
-typealias CapabilitySet = Set<Capability>
-typealias RoleSet = Set<KClass<out RoleEntity>>
 
-
-abstract class Constraint(
+abstract class Constraint<E : BaseEntity, RE : RoleEntity>(
         val capabilities: Set<Capability>,
-        val roles: Set<KClass<out RoleEntity>>,
-        val accessPredicate : ((RoleEntity) -> Boolean)?
+        val roles: Set<KClass<RE>>,
+        val accessPredicate : ((E, RE) -> Boolean)?
 )
 
-class FunctionConstraint(val operation : KFunction<*>, roles : RoleSet, capabilities : CapabilitySet, condition : ((RoleEntity) -> Boolean)?) : Constraint(capabilities, roles, condition)
+class FunctionConstraint<E : BaseEntity, RE : RoleEntity>(val operation : KFunction<*>, roles : Set<KClass<RE>>, capabilities : Set<Capability>, condition : ((E, RE) -> Boolean)?) : Constraint<E, RE>(capabilities, roles, condition)
 
-class PropertyConstraint(val property : KProperty<*>, roles : RoleSet, capabilities : CapabilitySet, condition : ((RoleEntity) -> Boolean)?) : Constraint(capabilities, roles, condition)
+class PropertyConstraint<E : BaseEntity, RE : RoleEntity>(val property : KProperty<*>, roles : Set<KClass<RE>>, capabilities : Set<Capability>, condition : ((E, RE) -> Boolean)?) : Constraint<E, RE>(capabilities, roles, condition)
 
-class EntityConstraint(roles : RoleSet, capabilities : CapabilitySet, condition : ((RoleEntity) -> Boolean)?) : Constraint(capabilities, roles, condition)
+class EntityConstraint<E : BaseEntity, RE : RoleEntity>(roles : Set<KClass<RE>>, capabilities : Set<Capability>, condition : ((E, RE) -> Boolean)?) : Constraint<E, RE>(capabilities, roles, condition)
 
-fun constraint(
-        roles : RoleSet, capabilities: CapabilitySet, condition : ((RoleEntity) -> Boolean)? = null) =
+fun <E : BaseEntity, RE : RoleEntity> constraint(
+        roles : Set<KClass<RE>>, capabilities: Set<Capability>, condition : ((E, RE) -> Boolean)? = null) =
         EntityConstraint(roles, capabilities, condition)
 
 
-fun constraint(property : KProperty<*>,
-               roles : RoleSet, capabilities: CapabilitySet, condition : ((RoleEntity) -> Boolean)? = null) =
+fun <E : BaseEntity, RE : RoleEntity> constraint(property : KProperty<*>,
+                                                 roles : Set<KClass<RE>>, capabilities: Set<Capability>, condition : ((E, RE) -> Boolean)? = null) =
         PropertyConstraint(property, roles, capabilities, condition)
 
 
-fun constraint(function : KFunction<*>,
-               roles : RoleSet, capabilities: CapabilitySet, condition : ((RoleEntity) -> Boolean)? = null) =
+fun <E : BaseEntity, RE : RoleEntity> constraint(function : KFunction<*>,
+                                                 roles : Set<KClass<RE>>, capabilities: Set<Capability>, condition : ((E, RE) -> Boolean)? = null) =
         FunctionConstraint(function, roles, capabilities, condition)
+
+fun <E : BaseEntity, RE : RoleEntity> constraint(clazz : KClass<E>,
+                                                 roles : Set<KClass<RE>>, capabilities: Set<Capability>, condition : ((E, RE) -> Boolean)? = null) =
+        EntityConstraint(roles, capabilities, condition)
+
 
 inline fun can(vararg capabilities : Capability) = capabilities.toSet()
 
-inline fun <RE: RoleEntity>roles(vararg roles : KClass<out RE>) : RoleSet = roles.toSet()
+inline fun <RE: RoleEntity>roles(vararg roles : KClass<RE>) : Set<KClass<RE>> = roles.toSet()
 
-inline fun <RE: RoleEntity>provided(noinline predicate : ((RE) -> Boolean)) : ((RE) -> Boolean) = predicate
+inline fun <E : BaseEntity, RE: RoleEntity>provided(noinline predicate : ((E, RE) -> Boolean)) : ((E, RE) -> Boolean) = predicate
 
-fun constraints(vararg constraints : Constraint) {}
-
-typealias Constraints = Iterable<Constraint>
+open class AccessControl<E : BaseEntity, RE : RoleEntity>(vararg  val constraints : Constraint<E, out RE>)

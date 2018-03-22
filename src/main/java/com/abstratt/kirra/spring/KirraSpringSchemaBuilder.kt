@@ -3,7 +3,7 @@ package com.abstratt.kirra.spring
 import com.abstratt.kirra.*
 import com.abstratt.kirra.Entity
 import com.abstratt.kirra.Parameter
-import com.abstratt.kirra.statemachine.StateMachine
+import com.abstratt.kirra.statemachine.StateMachineInstance
 import org.apache.commons.lang3.StringUtils
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
@@ -178,7 +178,7 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
         val enumConstants : Array<out Enum<*>>? = if (javaType.isEnum)
             javaType.enumConstants as Array<out Enum<*>>
         else
-            if (StateMachine::class.java.isAssignableFrom(javaType))
+            if (StateMachineInstance::class.java.isAssignableFrom(javaType))
                 getStateMachineTokenClass(attribute).enumConstants  as Array<out Enum<*>>
             else
                 null as? Array<out Enum<*>>?
@@ -297,7 +297,7 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
     fun getJavaType(attribute: Attribute<*, *>): Class<*> =
             if (attribute.isCollection)
                 ((attribute as CollectionAttribute<*, *>).elementType.javaType)
-            else if (attribute.persistentAttributeType == Attribute.PersistentAttributeType.EMBEDDED && StateMachine::class.java.isAssignableFrom(attribute.javaType))
+            else if (attribute.persistentAttributeType == Attribute.PersistentAttributeType.EMBEDDED && StateMachineInstance::class.java.isAssignableFrom(attribute.javaType))
                 getStateMachineTokenClass(attribute)
             else
                 attribute.javaType
