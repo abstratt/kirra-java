@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.data.jpa.repository.support.SimpleJpaRepository
 import javax.persistence.EntityManager
 import javax.persistence.PersistenceContext
 import kotlin.reflect.KClass

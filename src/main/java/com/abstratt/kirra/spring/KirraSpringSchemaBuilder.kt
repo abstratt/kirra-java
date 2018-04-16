@@ -105,10 +105,17 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
         newEntity.isRole = entityAsKotlinClass.isSubclassOf(UserProfile::class)
         newEntity.isRole = entityAsKotlinClass.isSubclassOf(RoleEntity::class)
         newEntity.isInstantiable = newEntity.isConcrete && !newEntity.properties.any { it.isRequired && !it.isInitializable } && !newEntity.relationships.any { it.isRequired && !it.isInitializable }
-        newEntity.orderedDataElements = (newEntity.properties + newEntity.relationships).map { it.name }
-        newEntity.mnemonicSlot = (newEntity.properties.filter { it.isUserVisible }.firstOrNull { it.isMnemonic } ?: newEntity.properties.firstOrNull())?.name
-        if (newEntity.mnemonicSlot != null)
+        val fieldBackedProperties = kirraSpringMetamodel.getAllKotlinProperties(entityAsKotlinClass)
+        newEntity.orderedDataElements = fieldBackedProperties.map{it.name}.filter { newEntity.getProperty(it) != null || newEntity.getRelationship(it) != null }
+        newEntity.mnemonicSlot = newEntity.properties.firstOrNull { it.isMnemonic }?.name ?:
+            newEntity.orderedDataElements.firstOrNull {
+                (newEntity.getProperty(it) ?: newEntity.getRelationship(it)?.takeIf { !it.isMultiple })?.isUserVisible ?: false
+            }
+        if (newEntity.mnemonicSlot != null) {
             newEntity.getProperty(newEntity.mnemonicSlot).isMnemonic = true
+            newEntity.orderedDataElements.remove(newEntity.mnemonicSlot)
+            newEntity.orderedDataElements.add(0, newEntity.mnemonicSlot)
+        }
         logger.info("Built entity ${newEntity.typeRef} from ${entityAsJavaClass.name}")
         return newEntity
     }

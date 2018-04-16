@@ -48,14 +48,16 @@ class KirraSpringInstanceManagement : InstanceManagement {
         val asEntity : BaseEntity = kirraSpringInstanceBridge.fromInstance(instance)
         val asService : BaseService<BaseEntity,*> = getEntityService(instance.typeRef)
         val created = asService.create(asEntity)
-        val createdInstance = created.toInstance()
+        val toConvert = created
+        val createdInstance = kirraSpringInstanceBridge.toInstance(toConvert, InstanceManagement.DataProfile.Full)
         return createdInstance
     }
 
     override fun getInstance(namespace: String, entityName: String, externalId: String, dataProfile: InstanceManagement.DataProfile?): Instance {
         val found = retrieveJavaInstance(namespace, entityName, externalId)
         KirraException.ensure(found != null, KirraException.Kind.OBJECT_NOT_FOUND, {null})
-        return found!!.toInstance()
+        val toConvert = found!!
+        return kirraSpringInstanceBridge.toInstance(toConvert, InstanceManagement.DataProfile.Full)
     }
 
     private fun retrieveJavaInstance(namespace: String, entityName: String, externalId: String): BaseEntity? {
@@ -71,7 +73,8 @@ class KirraSpringInstanceManagement : InstanceManagement {
         val asService : BaseService<BaseEntity,*> = getEntityService(instance.typeRef)
         val updatedEntity = asService.update(asEntity)
         KirraException.ensure(updatedEntity != null, KirraException.Kind.OBJECT_NOT_FOUND, {null})
-        val updatedInstance = updatedEntity!!.toInstance()
+        val toConvert = updatedEntity!!
+        val updatedInstance = kirraSpringInstanceBridge.toInstance(toConvert, InstanceManagement.DataProfile.Full)
         return updatedInstance
     }
 
@@ -208,10 +211,16 @@ class KirraSpringInstanceManagement : InstanceManagement {
     }
 
     override fun getCurrentUser(): Instance? =
-        securityService.getCurrentUser()?.toInstance()
+            securityService.getCurrentUser()?.let {
+                val toConvert = it
+                kirraSpringInstanceBridge.toInstance(toConvert, InstanceManagement.DataProfile.Empty)
+            }
 
     override fun getCurrentUserRoles(): List<Instance> =
-        (securityService.getCurrentUserRoles() ?: emptyList()).map { it.toInstance() }
+        (securityService.getCurrentUserRoles() ?: emptyList()).map {
+            val toConvert = it
+            kirraSpringInstanceBridge.toInstance(toConvert, InstanceManagement.DataProfile.Empty)
+        }
 
     override fun filterInstances(criteria : MutableMap<String, MutableList<Any>>?, namespace : String, name : String, profile : InstanceManagement.DataProfile?): MutableList<Instance> {
         return getInstances(namespace, name, profile);
@@ -221,7 +230,10 @@ class KirraSpringInstanceManagement : InstanceManagement {
         val entityClass : Class<BaseEntity>? = kirraSpringMetamodel.getEntityClass(namespace, entityName)
         val asService : BaseService<BaseEntity,*> = getEntityService(TypeRef(namespace, entityName, TypeRef.TypeKind.Entity))
         val listed = asService.list()
-        return listed.content.map { it.toInstance() }.toMutableList()
+        return listed.content.map {
+            val toConvert = it
+            kirraSpringInstanceBridge.toInstance(toConvert, InstanceManagement.DataProfile.Full)
+        }.toMutableList()
     }
 
     //public List<Instance> filterInstances(Map<String, List<Object>> criteria, String namespace, String name, DataProfile profile) {}
@@ -287,7 +299,10 @@ class KirraSpringInstanceManagement : InstanceManagement {
             callResult.toMutableList()
         else
             listOf(callResult).toMutableList()
-        val result = asList.map { if (it is BaseEntity) it.toInstance() else it }.toMutableList()
+        val result = asList.map { if (it is BaseEntity) {
+            val toConvert = it
+            kirraSpringInstanceBridge.toInstance(toConvert, InstanceManagement.DataProfile.Full)
+        } else it }.toMutableList()
 
         return Triple(service, javaInstance, result)
     }
@@ -300,14 +315,8 @@ class KirraSpringInstanceManagement : InstanceManagement {
     override fun newInstance(namespace: String, entityName: String): Instance {
         val entityClass : Class<BaseEntity>? = kirraSpringMetamodel.getEntityClass(namespace, entityName)
         KirraException.ensure(entityClass != null, KirraException.Kind.ENTITY, { "${namespace}.${entityName}"})
-        return entityClass!!.newInstance().toInstance()
-    }
-    /**
-     * Converts a JPA instance to a Kirra instance.
-     */
-    private fun <E : BaseEntity> E.toInstance() : Instance {
-        val toConvert = this
-        return kirraSpringInstanceBridge.toInstance(toConvert)
+        val toConvert = entityClass!!.newInstance()
+        return kirraSpringInstanceBridge.toInstance(toConvert, InstanceManagement.DataProfile.Full)
     }
 
     override fun validateInstance(toValidate: Instance?) {

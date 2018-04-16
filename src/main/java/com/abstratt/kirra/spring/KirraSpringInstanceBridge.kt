@@ -19,37 +19,40 @@ class KirraSpringInstanceBridge {
     /**
      * Converts a JPA instance to a Kirra instance.
      */
-    fun <E : BaseEntity> toInstance(toConvert : E) : Instance {
+    fun <E : BaseEntity> toInstance(toConvert : E, dataProfile : InstanceManagement.DataProfile = InstanceManagement.DataProfile.Slim) : Instance {
         // convert Java class instance to Kirra instance
         val entityTypeRef = getTypeRef(toConvert::class.java)
         val kirraEntity = schemaManagement.getEntity(entityTypeRef)
+        val properties = toConvert::class.memberProperties
+        val instance =  Instance(getTypeRef(toConvert.javaClass), toConvert.id?.let { it.toString() })
 
-        val entityType = kirraSpringMetamodel.getJpaEntity(toConvert.javaClass)!!
-        val attributes = kirraSpringMetamodel.getAttributes(entityType)
-
-        val properties = toConvert::class.memberProperties.associateBy { it.name }
-        val instance =  Instance(getTypeRef(toConvert.javaClass), null)
-        attributes.forEach {
-            val ktProperty = properties[it.name]
-            if (ktProperty != null) {
+        if (dataProfile != InstanceManagement.DataProfile.Empty) {
+            properties.forEach {
                 val kirraProperty = kirraEntity.getProperty(it.name)
-                val propertyValue = ktProperty.call(toConvert)
-                val javaValue = mapJavaValueToKirra(kirraProperty, propertyValue)
-                instance.setValue(it.name, javaValue)
+                if (kirraProperty != null) {
+                    val propertyValue = it.call(toConvert)
+                    val javaValue = mapJavaValueToKirra(kirraProperty, propertyValue)
+                    instance.setValue(it.name, javaValue)
+                } else if (dataProfile == InstanceManagement.DataProfile.Full) {
+                    val kirraRelationship = kirraEntity.getRelationship(it.name)
+                    if (kirraRelationship != null && !kirraRelationship.isMultiple) {
+                        val link = it.call(toConvert) as BaseEntity?
+                        if (link != null)
+                            instance.setSingleRelated(it.name, toInstance(link, InstanceManagement.DataProfile.Slim))
+                    }
+                }
             }
         }
-        instance.objectId = toConvert.id?.let { it.toString() }
-        instance.typeRef = entityTypeRef
         return instance
     }
 
-    fun <E : BaseEntity> getJavaInstance(newInstance: Instance?) : E? {
+    fun <E : BaseEntity?> getJavaInstance(newInstance: Instance?) : E? {
         if (newInstance == null) {
             return null
         }
         val javaClass = kirraSpringMetamodel.getEntityClass(newInstance.entityNamespace, newInstance.entityName) as? Class<E>
         KirraException.ensure(javaClass != null, KirraException.Kind.INTERNAL, { "No entity class found for ${newInstance.typeRef}" })
-        val javaInstance = javaClass!!.newInstance()
+        val javaInstance = javaClass!!.newInstance()!!
         if (!newInstance.isNew) {
             javaInstance.id = newInstance.objectId.toLong()
         }
@@ -63,7 +66,6 @@ class KirraSpringInstanceBridge {
     public fun <E : BaseEntity> fromInstance(newInstance: Instance) : E {
         val kirraEntity = schemaManagement.getEntity(newInstance.typeRef)
         val entityClass = kirraSpringMetamodel.getEntityClass(newInstance.typeRef)!!
-        val entityType = kirraSpringMetamodel.getJpaEntity(entityClass)!!
         val asEntity : E = getJavaInstance(newInstance)!!
         newInstance.values.forEach { propertyName : String, propertyValue : Any? ->
             val kirraProperty = kirraEntity.getProperty(propertyName)

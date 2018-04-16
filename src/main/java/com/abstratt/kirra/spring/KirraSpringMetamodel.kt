@@ -17,6 +17,7 @@ import javax.persistence.metamodel.Metamodel
 import javax.persistence.metamodel.SingularAttribute
 import kotlin.reflect.*
 import kotlin.reflect.full.*
+import kotlin.reflect.jvm.kotlinProperty
 
 
 @Component
@@ -137,6 +138,11 @@ class KirraSpringMetamodel {
     }
 
     fun isMnemonicProperty(javaMember: KCallable<Any?>): Boolean = javaMember.findAnnotation<MnemonicProperty>() != null
+    fun getAllKotlinProperties(entityAsKotlinClass: KClass<out Any>): Iterable<KProperty<*>> {
+        val inherited = entityAsKotlinClass.superclasses.filter { it.isSubclassOf(BaseEntity::class) }.map { getAllKotlinProperties(it)}.flatten()
+        val declared = entityAsKotlinClass.java.declaredFields.map { it.kotlinProperty }.filterNotNull()
+        return inherited + declared
+    }
 }
 
 
