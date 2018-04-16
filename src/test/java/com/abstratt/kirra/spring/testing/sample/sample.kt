@@ -25,6 +25,7 @@ enum class SampleRole : UserRole {
 @Entity
 @Named(description = "Products that can be added to a car")
 class Product : BaseEntity() {
+    val moniker : String get() = this.name ?: "N/A"
     @Column(nullable = false)
     var name: String? = null
     @Column(nullable = false)

@@ -15,13 +15,8 @@ import javax.persistence.metamodel.Attribute
 import javax.persistence.metamodel.EntityType
 import javax.persistence.metamodel.Metamodel
 import javax.persistence.metamodel.SingularAttribute
-import kotlin.reflect.KClass
-import kotlin.reflect.KFunction
-import kotlin.reflect.KVisibility
-import kotlin.reflect.full.cast
-import kotlin.reflect.full.findAnnotation
-import kotlin.reflect.full.functions
-import kotlin.reflect.full.superclasses
+import kotlin.reflect.*
+import kotlin.reflect.full.*
 
 
 @Component
@@ -135,6 +130,13 @@ class KirraSpringMetamodel {
 
     fun getLabel(name: String): String =
         StringUtils.splitByCharacterTypeCamelCase(name).map { it.capitalize() }.joinToString(" ", "", "")
+
+    fun isMultiple(returnType: KType): Boolean {
+        val kClass = returnType.classifier as KClass<*>
+        return kClass.isSubclassOf(Iterable::class) || kClass.isSubclassOf(java.lang.Iterable::class)
+    }
+
+    fun isMnemonicProperty(javaMember: KCallable<Any?>): Boolean = javaMember.findAnnotation<MnemonicProperty>() != null
 }
 
 

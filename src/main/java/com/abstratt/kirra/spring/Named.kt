@@ -15,3 +15,6 @@ annotation class QueryOp
 
 @Target(AnnotationTarget.FUNCTION)
 annotation class ImplementationOp
+
+@Target(AnnotationTarget.PROPERTY)
+annotation class MnemonicProperty
