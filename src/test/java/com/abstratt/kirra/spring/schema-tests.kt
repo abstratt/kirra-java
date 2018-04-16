@@ -16,9 +16,7 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner
 import kotlin.reflect.full.findAnnotation
 
 
-@RunWith(SpringJUnit4ClassRunner::class)
-@ContextConfiguration(classes = arrayOf(TestConfig::class))
-class SchemaTests {
+open class SchemaTests : TestBase() {
 
     @Autowired
     private lateinit var schema: Schema
@@ -35,7 +33,7 @@ class SchemaTests {
         assertEquals(2, namespaces.size)
         namespaces.sortBy { it.name }
         assertEquals("sample", namespaces[0].name)
-        assertEquals("user", namespaces[1].name)
+        assertEquals("userprofile", namespaces[1].name)
         val entities = namespaces[0].entities
         assertTrue(entities.size >= 1)
         val order = entities.find { it.name == Order::class.simpleName }
@@ -47,9 +45,13 @@ class SchemaTests {
         val entity = schema.allEntities.find { it.name == Product::class.simpleName }
         assertNotNull(entity)
         val productEntity = entity!!
-        val expectedTypeRef = kirraSpringMetamodel.getTypeRef(Product::class.java, TypeRef.TypeKind.Entity)
+        val expectedTypeRef = getTypeRef(Product::class.java, TypeRef.TypeKind.Entity)
         assertEquals(expectedTypeRef, productEntity.typeRef)
         assertEquals("sample", productEntity.entityNamespace)
+        assertTrue(productEntity.isTopLevel)
+        assertTrue(productEntity.isStandalone)
+         assertTrue(productEntity.isInstantiable)
+        assertTrue(productEntity.isConcrete)
     }
 
     @Test
@@ -108,7 +110,7 @@ class SchemaTests {
         val accountType = accountEntity.getProperty(Account::type.name)
         assertNotNull(accountType)
         assertEquals(TypeRef.TypeKind.Enumeration, accountType.typeRef.kind)
-        val expectedEnumeration = kirraSpringMetamodel.getTypeRef(AccountType::class.java, TypeRef.TypeKind.Enumeration)
+        val expectedEnumeration = getTypeRef(AccountType::class.java, TypeRef.TypeKind.Enumeration)
         assertEquals(expectedEnumeration, accountType.typeRef)
         assertEquals(listOf("Checking", "Savings"), accountType.enumerationLiterals.map { it.key })
     }

@@ -17,7 +17,9 @@ abstract class KirraJavaApplication {
 
 fun <C : KirraJavaApplication> runApplication(clazz : KClass<C>, args : Array<String>) {
     val springApplication = SpringApplication(clazz.java)
-    val commonProperties = PropertiesLoaderUtils.loadProperties(ClassPathResource("easyalpha-common-application.properties", clazz.java.classLoader))
+/*
+    val commonProperties = PropertiesLoaderUtils.loadProperties(ClassPathResource(COMMON_PROPERTIES, clazz.java.classLoader))
     springApplication.setDefaultProperties(commonProperties)
+*/
     springApplication.run(*args)
 }

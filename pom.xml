@@ -98,10 +98,21 @@
         </dependency>
         <dependency>
             <groupId>org.springframework</groupId>
-            <artifactId>spring-test</artifactId>
+            <artifactId>spring-core</artifactId>
             <version>${spring.version}</version>
-            <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+<!--
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+-->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
@@ -145,7 +156,7 @@
         </dependency>
         <dependency>
             <groupId>org.springframework</groupId>
-            <artifactId>spring-web</artifactId>
+            <artifactId>spring-test</artifactId>
             <version>${spring.version}</version>
             <scope>test</scope>
         </dependency>
@@ -167,6 +178,11 @@
             <scope>test</scope>
             <version>1.4.197</version>
         </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.9.3</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -180,6 +196,9 @@
                         <id>compile</id>
                         <goals> <goal>compile</goal> </goals>
                         <configuration>
+                            <jvmTarget>1.8</jvmTarget>
+                            <apiVersion>1.2</apiVersion>
+                            <languageVersion>1.2</languageVersion>
                             <compilerPlugins>
                                 <plugin>no-arg</plugin>
                                 <plugin>all-open</plugin>

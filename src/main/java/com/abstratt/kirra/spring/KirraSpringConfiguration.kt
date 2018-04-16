@@ -2,12 +2,10 @@ package com.abstratt.kirra.spring
 
 import com.abstratt.kirra.*
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.NoSuchBeanDefinitionException
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.support.SimpleJpaRepository
 import javax.persistence.EntityManager
 import javax.persistence.PersistenceContext
@@ -21,7 +19,7 @@ open class KirraSpringConfiguration {
 
         @Bean
         @Autowired
-        open fun schema(schemaBuilder: SchemaBuilder) : Schema =
+        fun schema(schemaBuilder: SchemaBuilder) : Schema =
                 schemaBuilder.build()
     }
 
@@ -29,10 +27,10 @@ open class KirraSpringConfiguration {
     lateinit private var kirraSpringMetamodel: KirraSpringMetamodel
 
     @Autowired
-    private lateinit var applicationContext: ConfigurableApplicationContext
+    lateinit private var kirraRepositoryRegistry: KirraRepositoryRegistry
 
-    @PersistenceContext
-    private lateinit var entityManager : EntityManager
+    @Autowired
+    private lateinit var applicationContext: ConfigurableApplicationContext
 
     @Bean
     open fun schemaManagement(@Autowired schema : Schema) : SchemaManagement =
@@ -40,27 +38,22 @@ open class KirraSpringConfiguration {
 
     @Autowired
     private fun createServices(schema : Schema) {
-        schema.allEntities.forEach { entity -> createService(entity, entityManager) }
+        schema.allEntities.forEach { entity -> createService(entity) }
     }
 
-    private fun createService(entity: Entity, entityManager: EntityManager) {
+    private fun createService(entity: Entity) {
         val serviceName = entity.name.decapitalize() + "Service"
-        val repositoryName = entity.name.decapitalize() + "Repository"
         val existingService = applicationContext.beanFactory.getSingleton(serviceName)
         if (existingService == null) {
-            logger.info("Creating service for for ${entity.name}")
+            logger.info("Creating service for ${entity.name} as ${serviceName}")
             val entityJavaClass = kirraSpringMetamodel.getEntityClass(entity.entityNamespace, entity.name)
             assert(entityJavaClass != null, { "No entity class for ${entity.typeRef}"})
             val entityClass : KClass<BaseEntity> = entityJavaClass!!.kotlin
             val genericService = GenericService(entityClass)
-            val repository =
-                try {
-                    applicationContext.getBean(repositoryName, JpaRepository::class.java) as JpaRepository<BaseEntity, Long>
-                } catch (e : NoSuchBeanDefinitionException) {
-                    SimpleJpaRepository<BaseEntity, Long>(entityClass.java, entityManager)
-                }
+            val repository = kirraRepositoryRegistry.findOrCreateRepository<BaseEntity>(entity.name, entityClass)
             genericService.repository = repository
             applicationContext.beanFactory.registerSingleton(serviceName, genericService)
+            logger.debug("Service created for ${entity.name}")
         } else {
             logger.debug("No service created for ${entity.name}")
         }

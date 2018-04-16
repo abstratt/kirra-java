@@ -1,13 +1,15 @@
 package com.abstratt.kirra.spring.testing.sample
 
 import com.abstratt.kirra.spring.*
+import com.abstratt.kirra.spring.userprofile.UserProfile
 import com.abstratt.kirra.spring.user.RoleEntity
+import com.abstratt.kirra.spring.user.RoleRepository
 import com.abstratt.kirra.spring.user.UserRole
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Repository
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
 import javax.persistence.*
 
 interface SampleMarker
@@ -58,6 +60,7 @@ class Order(override var id: Long? = null) : BaseEntity(id) {
     @OneToMany(orphanRemoval = true, mappedBy = "order")
     var items: MutableCollection<OrderItem> = ArrayList()
 
+    @ActionOp
     fun addItem(product: Product, quantity: Int): OrderItem {
         val newItem = OrderItem(order = this, product = product, quantity = quantity)
         items.add(newItem)
@@ -72,30 +75,76 @@ interface OrderRepository : BaseRepository<Order> {
 
 @Service
 open class OrderService : BaseService<Order, OrderRepository>(Order::class) {
-    @QueryOperation
+    @QueryOp
     open fun byStatus(toMatch : OrderStatus) = repository.findAllByStatus(toMatch)
 }
 
 @Entity
 abstract class Person(
-        override var id: Long? = null,
+        id: Long? = null,
         @Column(unique = true)
-        var name: String? = null
-) : RoleEntity(id)
+        var name: String? = null,
+        user : UserProfile? = null
+) : RoleEntity(id, user)
 
 
 @Entity
-class Employee : Person() {
+class Employee(id : Long? = null, name : String? = null, user : UserProfile? = null) : Person(id, name, user) {
     override fun getRole(): UserRole = SampleRole.Employee
 }
 
 @Entity
-class Customer : Person() {
+class Customer(id : Long? = null, name : String? = null, user : UserProfile? = null) : Person(id, name, user) {
     @OneToMany(orphanRemoval = false, mappedBy = "customer")
     var orders: MutableCollection<Order> = ArrayList()
 
     override fun getRole(): UserRole = SampleRole.Customer
+
+    object accessControl : AccessControl<Customer, Person>(
+            constraint(
+                    roles(Customer::class),
+                    can(Capability.Update),
+                    provided { e, re -> e == re }
+            ),
+            constraint(
+                    roles(Customer::class),
+                    can(Capability.List, Capability.Read)
+            ),
+            constraint(
+                    roles(Employee::class),
+                    can(Capability.List, Capability.Read, Capability.Create)
+            ),
+            constraint(
+                    CustomerService::allCustomers,
+                    roles(Employee::class),
+                    can(Capability.StaticCall)
+            )
+    )
 }
+
+@Service
+open class CustomerService : BaseService<Customer, CustomerRepository>(Customer::class) {
+    @QueryOp
+    fun allCustomers(pageable : Pageable? = null) : Page<Customer> = repository.findAll(pageable)
+}
+
+@Repository
+interface CustomerRepository : RoleRepository<Customer>
+
+@Repository
+interface EmployeeRepository : RoleRepository<Employee>
+
+@Repository
+interface AccountRepository : BaseRepository<Account>
+
+@Repository
+interface TransferRepository : BaseRepository<Transfer>
+
+@Repository
+interface ProductRepository : BaseRepository<Product>
+
+@Repository
+interface OrderItemRepository : BaseRepository<OrderItem>
 
 @Entity
 class Transfer(

@@ -22,10 +22,10 @@ open class StateMachine<ST : StateToken, SE : StateEvent> (
         assert(!tokens.isEmpty(), { "${stateProperty.name} must be a non-empty enumeration" })
     }
 
-    fun currentStateToken(context : StateContext<ST, SE>) : ST =
+    fun currentStateToken(context: StateContext<ST, SE>): ST =
             stateProperty.getter.call(context) ?: initialState.token
 
-    fun <SC : StateContext<ST, SE>> currentState(context : SC): State<ST, SC> =
+    fun <SC : StateContext<ST, SE>> currentState(context: SC): State<ST, SC> =
             asState(currentStateToken(context)) as State<ST, SC>
 
     fun <SC : StateContext<ST, SE>> advance(context: SC, to: ST) =
@@ -33,7 +33,10 @@ open class StateMachine<ST : StateToken, SE : StateEvent> (
 
     val initialState by lazy { asState(initialStateToken) }
 
-    val initialStateToken by lazy { tokens.first() }
+    val initialStateToken by lazy {
+        val initialState = tokens.first()
+        initialState
+    }
 
     val states by lazy {
         tokens
@@ -41,13 +44,15 @@ open class StateMachine<ST : StateToken, SE : StateEvent> (
                     activeStates.find { it.token == token } ?: State(token)
                 }
     }
-    private val tokens : List<ST> get() {
-        val returnType = stateProperty.returnType
-        val clazz : KClass<ST> = (returnType.classifier as KClass<ST>)
-        val javaClass = clazz.java
-        val enumConstants = javaClass.enumConstants
-        return enumConstants.map { it as ST }.toList()}
-
+    private val tokens: List<ST>
+        get() {
+            val returnType = stateProperty.returnType
+            val clazz: KClass<ST> = (returnType.classifier as KClass<ST>)
+            val javaClass = clazz.java
+            val enumConstants = javaClass.enumConstants
+            val asTokens = enumConstants.map { it as ST }.toList()
+            return asTokens
+        }
     fun asState(stateToken : StateToken) : State<ST, *> =
             states.find { it.token == stateToken } as State<ST, *>
 }

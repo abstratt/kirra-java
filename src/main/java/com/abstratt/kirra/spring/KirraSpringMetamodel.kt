@@ -1,6 +1,8 @@
 package com.abstratt.kirra.spring
 
+import com.abstratt.kirra.Operation
 import com.abstratt.kirra.TypeRef
+import org.apache.commons.lang3.StringUtils
 import org.reflections.Reflections
 import org.reflections.util.ConfigurationBuilder
 import org.springframework.beans.factory.annotation.Autowired
@@ -17,9 +19,9 @@ import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KVisibility
 import kotlin.reflect.full.cast
+import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.functions
 import kotlin.reflect.full.superclasses
-import kotlin.reflect.jvm.javaMethod
 
 
 @Component
@@ -60,12 +62,11 @@ class KirraSpringMetamodel {
         entityClasses.containsKey(clazz.name)
 
 
-    fun packageNameToNamespace(packageName : String) : String = packageName.split('.').last()
-
     fun namespaceToPackageName(namespace : String) : String = kirraSpringApplication.javaPackages.find { it.endsWith(".${namespace}") } ?: namespace
     fun getEntityClass(namespace: String, entityName: String): Class<BaseEntity>? {
         val packageName = namespaceToPackageName(namespace)
-        return entitiesByPackage[packageName]?.find { it.simpleName == entityName }
+        val found = entitiesByPackage[packageName]?.find { it.simpleName == entityName }
+        return found
     }
     fun getEntityClass(typeRef: TypeRef) = getEntityClass(typeRef.namespace, typeRef.typeName)
 
@@ -96,19 +97,44 @@ class KirraSpringMetamodel {
 
     fun getInstanceFunctions(entityType: KClass<*>): List<KFunction<*>> {
         val instanceFunctions = entityType.functions.filter {
-            isEntityOperation(it)
+            isKirraOperation(it)
         }
         return instanceFunctions
     }
-    private fun isEntityOperation(it: KFunction<*>) =
-            !it.isImplementationMethod() && it.visibility == KVisibility.PUBLIC && it.javaMethod?.declaringClass?.kotlin?.isEntity() ?: false
+    fun isKirraOperation(it: KFunction<*>) =
+            it.visibility == KVisibility.PUBLIC
+            && (it.findAnnotation<ActionOp>() != null || it.findAnnotation<QueryOp>() != null)
 
-    private fun isServiceOperation(it: KFunction<*>) =
-            !it.isImplementationMethod() && it.visibility == KVisibility.PUBLIC && it.javaMethod?.declaringClass?.kotlin?.isService() ?: false
+    fun getOperationKind(kotlinFunction: KFunction<*>, instanceOperation: Boolean): Operation.OperationKind {
+/*
+        if (instanceOperation) {
+            return Operation.OperationKind.Action
+        }
+        if (kotlinFunction.annotations.findAnnotationByType(QueryOperation::class) != null) {
+            return Operation.OperationKind.Finder
+        }
+        if (kotlinFunction.annotations.findAnnotationByType(ActionOperation::class) != null) {
+            return Operation.OperationKind.Action
+        }
+        val transactional = kotlinFunction.annotations.findAnnotationByType(Transactional::class)
+        if (transactional != null) {
+            return if (transactional.readOnly == true) Operation.OperationKind.Finder else Operation.OperationKind.Action
+        }
+        return Operation.OperationKind.Action
+*/
 
 
-    fun <E> getTypeRef(javaClass: Class<E>, kind : TypeRef.TypeKind = TypeRef.TypeKind.Entity): TypeRef =
-            TypeRef(packageNameToNamespace(javaClass.`package`.name), javaClass.simpleName, kind)
+        if (kotlinFunction.annotations.findAnnotationByType(QueryOp::class) != null) {
+            return Operation.OperationKind.Finder
+        }
+        if (kotlinFunction.annotations.findAnnotationByType(ActionOp::class) != null) {
+            return Operation.OperationKind.Action
+        }
+        throw IllegalArgumentException("Not a kirra operation: ${kotlinFunction.name}")
+    }
+
+    fun getLabel(name: String): String =
+        StringUtils.splitByCharacterTypeCamelCase(name).map { it.capitalize() }.joinToString(" ", "", "")
 }
 
 
@@ -116,6 +142,7 @@ fun <R> KFunction<R>.isImplementationMethod(): Boolean =
         when {
             setOf("hashCode", "equals", "copy", "toString").contains(this.name) -> true
             this.name.matches(Regex("component[0-9]*")) -> true
+            this.findAnnotation<ImplementationOp>() != null -> true
             else -> false
         }
 

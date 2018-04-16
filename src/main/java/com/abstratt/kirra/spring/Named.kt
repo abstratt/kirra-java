@@ -8,7 +8,10 @@ annotation class Named (
 )
 
 @Target(AnnotationTarget.FUNCTION)
-annotation class ActionOperation
+annotation class ActionOp
 
 @Target(AnnotationTarget.FUNCTION)
-annotation class QueryOperation
+annotation class QueryOp
+
+@Target(AnnotationTarget.FUNCTION)
+annotation class ImplementationOp
