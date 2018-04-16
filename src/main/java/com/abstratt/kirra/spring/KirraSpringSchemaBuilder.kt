@@ -106,8 +106,9 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
         newEntity.isRole = entityAsKotlinClass.isSubclassOf(RoleEntity::class)
         newEntity.isInstantiable = newEntity.isConcrete && !newEntity.properties.any { it.isRequired && !it.isInitializable } && !newEntity.relationships.any { it.isRequired && !it.isInitializable }
         newEntity.orderedDataElements = (newEntity.properties + newEntity.relationships).map { it.name }
-        newEntity.mnemonicSlot = (newEntity.properties.filter { it.isUserVisible }.firstOrNull { it.isMnemonic } ?: newEntity.properties.first()).name
-        newEntity.getProperty(newEntity.mnemonicSlot).isMnemonic = true
+        newEntity.mnemonicSlot = (newEntity.properties.filter { it.isUserVisible }.firstOrNull { it.isMnemonic } ?: newEntity.properties.firstOrNull())?.name
+        if (newEntity.mnemonicSlot != null)
+            newEntity.getProperty(newEntity.mnemonicSlot).isMnemonic = true
         logger.info("Built entity ${newEntity.typeRef} from ${entityAsJavaClass.name}")
         return newEntity
     }
