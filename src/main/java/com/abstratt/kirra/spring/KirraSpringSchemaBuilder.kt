@@ -106,7 +106,7 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
         newEntity.isRole = entityAsKotlinClass.isSubclassOf(UserProfile::class)
         newEntity.isRole = entityAsKotlinClass.isSubclassOf(RoleEntity::class)
         newEntity.isInstantiable = newEntity.isConcrete && !newEntity.properties.any { it.isRequired && !it.isInitializable } && !newEntity.relationships.any { it.isRequired && !it.isInitializable }
-
+        newEntity.orderedDataElements = (newEntity.properties + newEntity.relationships).map { it.name }
         logger.info("Built entity ${newEntity.typeRef} from ${entityAsJavaClass.name}")
         return newEntity
     }

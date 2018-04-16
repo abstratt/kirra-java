@@ -195,6 +195,7 @@
                     <jvmTarget>1.8</jvmTarget>
                     <apiVersion>1.2</apiVersion>
                     <languageVersion>1.2</languageVersion>
+                    <javaParameters>true</javaParameters>
                     <compilerPlugins>
                         <plugin>no-arg</plugin>
                         <plugin>all-open</plugin>
