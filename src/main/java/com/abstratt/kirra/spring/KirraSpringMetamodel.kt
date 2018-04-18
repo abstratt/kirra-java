@@ -2,7 +2,6 @@ package com.abstratt.kirra.spring
 
 import com.abstratt.kirra.Operation
 import com.abstratt.kirra.TypeRef
-import org.apache.commons.lang3.StringUtils
 import org.reflections.Reflections
 import org.reflections.util.ConfigurationBuilder
 import org.springframework.beans.factory.annotation.Autowired
@@ -128,9 +127,6 @@ class KirraSpringMetamodel {
         }
         throw IllegalArgumentException("Not a kirra operation: ${kotlinFunction.name}")
     }
-
-    fun getLabel(name: String): String =
-        StringUtils.splitByCharacterTypeCamelCase(name).map { it.capitalize() }.joinToString(" ", "", "")
 
     fun isMultiple(returnType: KType): Boolean {
         val kClass = returnType.classifier as KClass<*>

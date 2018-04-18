@@ -43,7 +43,7 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
         val schema = Schema()
         schema.namespaces = buildNamespaces(kirraSpringMetamodel.entitiesByPackage)
         schema.applicationName = kirraSpringApplication.name
-        schema.applicationLabel = kirraSpringMetamodel.getLabel(schema.applicationName)
+        schema.applicationLabel = getLabel(schema.applicationName)
         return schema
     }
 
@@ -460,7 +460,7 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
 
     interface NameProvider {
         fun getName() : String
-        fun getLabel() : String = getName()
+        fun getLabel() : String = getLabel(getName())
         fun getSymbol() : String = getName()
         fun getDescription() : String? = null
     }
