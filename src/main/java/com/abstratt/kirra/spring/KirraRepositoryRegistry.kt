@@ -49,9 +49,11 @@ class KirraRepositoryRegistry {
         return existingRepository ?: createGenericRepository(entityClass, entityManager)
     }
 
-    private fun <T : BaseEntity> createGenericRepository(entityClass: KClass<T>, entityManager: EntityManager): GenericRepository<T> =
-        if (entityClass.isSubclassOf(RoleEntity::class))
+    private fun <T : BaseEntity> createGenericRepository(entityClass: KClass<T>, entityManager: EntityManager): GenericRepository<T> {
+        throw IllegalStateException("Missing repository for ${entityClass.simpleName}")
+        return if (entityClass.isSubclassOf(RoleEntity::class))
             GenericRoleEntityRepository(entityClass as KClass<RoleEntity>, entityManager) as GenericRepository<T>
         else
             GenericRepository(entityClass, entityManager)
+    }
 }

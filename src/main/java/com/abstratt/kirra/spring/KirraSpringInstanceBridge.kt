@@ -2,6 +2,7 @@ package com.abstratt.kirra.spring
 
 import com.abstratt.kirra.*
 import com.abstratt.kirra.statemachine.StateMachineInstance
+import com.abstratt.kirra.statemachine.StateToken
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
 import kotlin.reflect.KMutableProperty
@@ -94,8 +95,8 @@ class KirraSpringInstanceBridge {
             return null
         }
         if (element.typeRef.kind == TypeRef.TypeKind.Enumeration) {
-            if (javaValue is StateMachineInstance<*, *, *>) {
-                return javaValue.currentStateToken.name
+            if (javaValue is StateToken) {
+                return javaValue.name
             }
             if (javaValue is Enum<*>) {
                 return javaValue.name

@@ -47,11 +47,12 @@ class OrderItem(
 }
 
 enum class OrderStatus {
+    @Column
     Open, Closed, Canceled
 }
 
 @Entity
-class Order(override var id: Long? = null) : BaseEntity(id) {
+class Order(id: Long? = null) : BaseEntity(id) {
     @Enumerated(EnumType.STRING)
     var status : OrderStatus? = OrderStatus.Open
 
@@ -149,7 +150,7 @@ interface OrderItemRepository : BaseRepository<OrderItem>
 
 @Entity
 class Transfer(
-        override var id: Long? = null,
+        id: Long? = null,
         @ManyToOne
         var source: Account? = null,
         @ManyToOne
@@ -158,7 +159,7 @@ class Transfer(
 
 @Entity
 class Account(
-        override var id: Long? = null,
+        id: Long? = null,
         @ManyToOne
         var owner: Customer? = null,
         var balance: Double? = null,

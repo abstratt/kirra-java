@@ -17,7 +17,7 @@ import javax.persistence.metamodel.Metamodel
 import javax.persistence.metamodel.SingularAttribute
 import kotlin.reflect.*
 import kotlin.reflect.full.*
-import kotlin.reflect.jvm.kotlinProperty
+import kotlin.reflect.jvm.*
 
 
 @Component

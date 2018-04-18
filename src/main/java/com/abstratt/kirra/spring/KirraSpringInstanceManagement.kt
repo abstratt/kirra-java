@@ -87,19 +87,19 @@ class KirraSpringInstanceManagement : InstanceManagement {
     }
 
     override fun zap() {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        throw UnsupportedOperationException("zap not supported")
     }
 
     override fun getEnabledEntityActions(entity: Entity?): MutableList<Operation> {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-    override fun getRelationshipDomain(entity: Entity?, objectId: String?, relationship: Relationship?): MutableList<Instance> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    override fun getRelationshipDomain(entity: Entity, objectId: String, relationship: Relationship): MutableList<Instance> {
+        //TODO-RC honor relationship constraints
+        return getInstances(relationship.typeRef.entityNamespace, relationship.typeRef.typeName, InstanceManagement.DataProfile.Slim)
     }
 
     override fun saveContext() {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
     override fun getEntityCapabilities(typeRef: TypeRef): EntityCapabilities {

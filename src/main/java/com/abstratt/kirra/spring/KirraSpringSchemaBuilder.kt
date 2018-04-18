@@ -22,7 +22,6 @@ import javax.persistence.metamodel.Type
 import kotlin.reflect.*
 import kotlin.reflect.full.*
 import kotlin.reflect.jvm.*
-
 @Component
 class KirraSpringSchemaBuilder : SchemaBuilder {
 
@@ -71,7 +70,7 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
         val entityAsKotlinClass = entityAsJavaClass.kotlin
         val tmpObject = entityAsKotlinClass.createInstance()
 
-        setName(newEntity, entityAsKotlinClass, { entityType.name })
+        setName(newEntity, ClassNameProvider(entityAsKotlinClass))
         newEntity.namespace = namespaceName
         val storedProperties = this.buildStoredProperties(entityType, tmpObject)
         val derivedProperties = entityAsKotlinClass.memberProperties.filter { it.javaField == null && !(it is KMutableProperty<*>) }.map { buildDerivedProperty(it, tmpObject) }
@@ -106,15 +105,24 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
         newEntity.isRole = entityAsKotlinClass.isSubclassOf(RoleEntity::class)
         newEntity.isInstantiable = newEntity.isConcrete && !newEntity.properties.any { it.isRequired && !it.isInitializable } && !newEntity.relationships.any { it.isRequired && !it.isInitializable }
         val fieldBackedProperties = kirraSpringMetamodel.getAllKotlinProperties(entityAsKotlinClass)
-        newEntity.orderedDataElements = fieldBackedProperties.map{it.name}.filter { newEntity.getProperty(it) != null || newEntity.getRelationship(it) != null }
+        newEntity.orderedDataElements = fieldBackedProperties
+                .map {it.name}
+                .filter {
+                    (newEntity.getProperty(it) ?: newEntity.getRelationship(it))?.let {
+                        it.isUserVisible && !it.isMultiple
+                    } ?: false
+                }
         newEntity.mnemonicSlot = newEntity.properties.firstOrNull { it.isMnemonic }?.name ?:
             newEntity.orderedDataElements.firstOrNull {
                 (newEntity.getProperty(it) ?: newEntity.getRelationship(it)?.takeIf { !it.isMultiple })?.isUserVisible ?: false
             }
         if (newEntity.mnemonicSlot != null) {
-            newEntity.getProperty(newEntity.mnemonicSlot).isMnemonic = true
-            newEntity.orderedDataElements.remove(newEntity.mnemonicSlot)
-            newEntity.orderedDataElements.add(0, newEntity.mnemonicSlot)
+            val mnemonicElement : DataElement = newEntity.getProperty(newEntity.mnemonicSlot) ?: newEntity.getRelationship(newEntity.mnemonicSlot)
+            if (mnemonicElement != null) {
+                mnemonicElement.isMnemonic = true
+                newEntity.orderedDataElements.remove(newEntity.mnemonicSlot)
+                newEntity.orderedDataElements.add(0, newEntity.mnemonicSlot)
+            }
         }
         logger.info("Built entity ${newEntity.typeRef} from ${entityAsJavaClass.name}")
         return newEntity
@@ -127,7 +135,7 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
 
     private fun buildOperation(kotlinFunction: KFunction<*>, instanceOperation : Boolean, parameterFilter : (p : KParameter) -> Boolean = { true }): Operation {
         val operation = Operation()
-        setName(operation, kotlinFunction, { kotlinFunction.name })
+        setName(operation, CallableNameProvider(kotlinFunction))
         operation.isInstanceOperation = instanceOperation
         operation.parameters = kotlinFunction.valueParameters.filter { !isInternalParameter(it) && parameterFilter.invoke(it) }.map { buildParameter(it) }
         operation.kind = getOperationKind(kotlinFunction, instanceOperation)
@@ -152,7 +160,7 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
 
     private fun buildParameter(kotlinParameter: KParameter): Parameter {
         val parameter = Parameter()
-        setName(parameter, kotlinParameter, { it.name!! })
+        setName(parameter, ParameterNameProvider(kotlinParameter))
         parameter.typeRef = getTypeRef(KotlinParameter(kotlinParameter))
         parameter.direction = Parameter.Direction.In
         parameter.isUserVisible = true
@@ -174,7 +182,7 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
         val hasDefault = javaMember is Field && javaMember.kotlinProperty?.visibility == KVisibility.PUBLIC && javaMember.kotlinProperty?.call(tmpObject) != null
 
         val property = Property()
-        setName(property, kotlinElement, { kotlinElement.name })
+        setName(property, CallableNameProvider(kotlinElement))
         property.typeRef = getTypeRef(KotlinProperty(attribute, (if (javaMember is Field) (javaMember.kotlinProperty!!) else (javaMember as Method).kotlinFunction!!)))
         if (property.typeRef.kind == TypeRef.TypeKind.Enumeration) {
             property.enumerationLiterals = buildPropertyEnumerationLiterals(attribute, getJavaType(attribute) as Class<Enum<*>>).associateBy { it.name }
@@ -197,7 +205,7 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
         val javaMember = kProperty.javaGetter
         val kotlinElement = kProperty
         val property = Property()
-        setName(property, kotlinElement, { kotlinElement.name })
+        setName(property, CallableNameProvider(kotlinElement))
         property.typeRef = getTypeRef(KotlinDerivedProperty(kProperty))
         property.isMultiple = kirraSpringMetamodel.isMultiple(kProperty.returnType)
         property.isHasDefault = true
@@ -233,14 +241,14 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
 
     private fun buildEnumerationLiteral(enumeration: Enum<*>): EnumerationLiteral {
         val literal = EnumerationLiteral()
-        literal.name = enumeration.name
+        setName(literal, EnumNameProvider(enumeration))
         return literal
     }
 
     private fun buildRelationship(attribute: Attribute<*, *>): Relationship {
         val relationship = Relationship()
         val javaMember = attribute.javaMember
-        setName(relationship, memberToAnnotated(javaMember), { attribute.name })
+        setName(relationship, CallableNameProvider(memberToAnnotated(javaMember) as KCallable<*>))
         relationship.typeRef = getEntityTypeRef(attribute)
         val opposite = findOpposite(attribute)
         relationship.style = getRelationshipStyle(attribute, opposite)
@@ -443,15 +451,61 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
     private fun <X, Y> Attribute<X, Y>.isRequired(): Boolean =
             this is SingularAttribute && !this.isOptional
 
-    private fun <AE : KAnnotatedElement> setName(namedElement : NamedElement<*>, annotatedElement : AE, nameProvider : (AE) -> String) {
-        val named = annotatedElement.annotations.findAnnotationByType(Named::class)
-        namedElement.name = StringUtils.trimToNull(named?.name) ?: nameProvider.invoke(annotatedElement)
-        namedElement.description = named?.description
-        var name = namedElement.name
-        val label = kirraSpringMetamodel.getLabel(name)
-        namedElement.label = named?.label ?: label
-        namedElement.symbol = named?.symbol
+    private fun setName(namedElement : NamedElement<*>, nameProvider : NameProvider) {
+        namedElement.name = nameProvider.getName()
+        namedElement.description = nameProvider.getDescription()
+        namedElement.label = nameProvider.getLabel()
+        namedElement.symbol = nameProvider.getSymbol()
     }
 
+    interface NameProvider {
+        fun getName() : String
+        fun getLabel() : String = getName()
+        fun getSymbol() : String = getName()
+        fun getDescription() : String? = null
+    }
+
+    abstract class AnnotationBasedNameProvider<AE : KAnnotatedElement> (val annotatedElement: AE) : NameProvider {
+        abstract fun getElementName() : String
+
+        override fun getName(): String {
+            val named = annotatedElement.annotations.findAnnotationByType(Named::class)
+            return StringUtils.trimToNull(named?.name) ?: getElementName()
+        }
+
+        override fun getLabel(): String {
+            val named = annotatedElement.annotations.findAnnotationByType(Named::class)
+            return named?.let { StringUtils.trimToNull(it.label) } ?: super.getLabel()
+        }
+        override fun getSymbol(): String {
+            val named = annotatedElement.annotations.findAnnotationByType(Named::class)
+            return StringUtils.trimToNull(named?.symbol) ?: super.getLabel()
+        }
+        override fun getDescription(): String? {
+            val named = annotatedElement.annotations.findAnnotationByType(Named::class)
+            return named?.let { StringUtils.trimToNull(it.description) } ?: super.getDescription()
+        }
+    }
+
+    class ClassNameProvider(element: KClass<*>) : AnnotationBasedNameProvider<KClass<*>>(element) {
+        override fun getElementName(): String =
+            annotatedElement.simpleName!!
+    }
+
+    class CallableNameProvider(element: KCallable<*>) : AnnotationBasedNameProvider<KCallable<*>>(element) {
+        override fun getElementName(): String =
+                annotatedElement.name!!
+    }
+
+    class ParameterNameProvider(element: KParameter) : AnnotationBasedNameProvider<KParameter>(element) {
+        override fun getElementName(): String =
+                annotatedElement.name!!
+    }
+
+
+    class EnumNameProvider(val enum : Enum<*>) : NameProvider {
+        override fun getName(): String =
+            enum.name
+    }
 }
 
