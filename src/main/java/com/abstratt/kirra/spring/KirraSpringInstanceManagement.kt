@@ -230,10 +230,8 @@ class KirraSpringInstanceManagement : InstanceManagement {
         val entityClass : Class<BaseEntity>? = kirraSpringMetamodel.getEntityClass(namespace, entityName)
         val asService : BaseService<BaseEntity,*> = getEntityService(TypeRef(namespace, entityName, TypeRef.TypeKind.Entity))
         val listed = asService.list()
-        return listed.content.map {
-            val toConvert = it
-            kirraSpringInstanceBridge.toInstance(toConvert, InstanceManagement.DataProfile.Full)
-        }.toMutableList()
+        val elements = listed.content
+        return kirraSpringInstanceBridge.toInstances(elements).toMutableList()
     }
 
     //public List<Instance> filterInstances(Map<String, List<Object>> criteria, String namespace, String name, DataProfile profile) {}
@@ -323,8 +321,14 @@ class KirraSpringInstanceManagement : InstanceManagement {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-    override fun getRelatedInstances(namespace: String?, name: String?, externalId: String?, relationship: String?, dataProfile: InstanceManagement.DataProfile?): MutableList<Instance> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    override fun getRelatedInstances(namespace: String, entityName: String, externalId: String, relationshipName: String, dataProfile: InstanceManagement.DataProfile?): MutableList<Instance> {
+        val found = retrieveJavaInstance(namespace, entityName, externalId)
+        KirraException.ensure(found != null, KirraException.Kind.OBJECT_NOT_FOUND, {null})
+        val toConvert = found!!
+        val relationshipKProperty = toConvert::class.memberProperties.firstOrNull { it.name == relationshipName }
+        KirraException.ensure(relationshipKProperty != null, KirraException.Kind.ELEMENT_NOT_FOUND, {null})
+        val relatedObjects = relationshipKProperty!!.call(toConvert) as Iterable<BaseEntity> ?: emptyList()
+        return kirraSpringInstanceBridge.toInstances(relatedObjects).toMutableList()
     }
 
     override fun unlinkInstances(relationship: Relationship?, sourceId: String?, destinationId: InstanceRef?) {

@@ -17,6 +17,13 @@ class KirraSpringInstanceBridge {
     @Autowired
     private lateinit var kirraSpringMetamodel: KirraSpringMetamodel
 
+    fun toInstances(elements: Iterable<BaseEntity>): Iterable<Instance> {
+        return elements.map {
+            val toConvert = it
+            toInstance(toConvert, InstanceManagement.DataProfile.Full)
+        }.toMutableList()
+    }
+
     /**
      * Converts a JPA instance to a Kirra instance.
      */

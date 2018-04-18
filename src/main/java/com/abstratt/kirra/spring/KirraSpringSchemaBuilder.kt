@@ -76,7 +76,12 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
         val derivedProperties = entityAsKotlinClass.memberProperties.filter { it.javaField == null && !(it is KMutableProperty<*>) }.map { buildDerivedProperty(it, tmpObject) }
         val allProperties = storedProperties + derivedProperties
         newEntity.properties = allProperties
-        newEntity.relationships = this.buildRelationships(entityType)
+
+        val storedRelationships = this.buildStoredRelationships(entityType)
+        val derivedRelationships = entityAsKotlinClass.memberProperties.filter { kirraSpringMetamodel.isEntityClass(it.returnType.javaClass) && it.javaField == null && !(it is KMutableProperty<*>) }.map { buildDerivedRelationship(it) }
+        val allRelationships = storedRelationships + derivedRelationships
+        newEntity.relationships = allRelationships
+
         val allOperations = this.buildInstanceOperations(entityType).toMutableList()
         try {
             val serviceClass = entityAsJavaClass.classLoader.loadClass(entityAsJavaClass.name + "Service")
@@ -128,6 +133,10 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
         return newEntity
     }
 
+    private fun buildDerivedRelationship(ktProperty: KProperty<*>): Relationship {
+        TODO("buildDerivedRelationship not implemented yet" )
+    }
+
     private fun buildInstanceOperations(entityType: EntityType<*>): List<Operation> {
         val entityFunctions = kirraSpringMetamodel.getInstanceFunctions(entityType.javaType.kotlin)
         return entityFunctions.map { buildOperation(it as KFunction<*>,true) }
@@ -168,7 +177,7 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
         return parameter
     }
 
-    private fun buildRelationships(entityClass: EntityType<*>): List<Relationship> {
+    private fun buildStoredRelationships(entityClass: EntityType<*>): List<Relationship> {
         return kirraSpringMetamodel.getRelationships(entityClass).map { this.buildRelationship(it) }
     }
 
@@ -272,6 +281,8 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
         logger.info("Built relationship ${relationship.name} from ${javaMember}")
         return relationship
     }
+
+
 
     private fun isUserVisible(attribute: Attribute<*, *>) : Boolean {
         val javaMember = attribute.javaMember
