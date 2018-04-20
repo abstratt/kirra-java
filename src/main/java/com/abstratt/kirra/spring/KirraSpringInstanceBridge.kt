@@ -6,6 +6,7 @@ import com.abstratt.kirra.statemachine.StateToken
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
 import kotlin.reflect.KMutableProperty
+import kotlin.reflect.KProperty1
 import kotlin.reflect.full.memberProperties
 
 @Component
@@ -35,23 +36,51 @@ class KirraSpringInstanceBridge {
         val instance =  Instance(getTypeRef(toConvert.javaClass), toConvert.id?.let { it.toString() })
 
         if (dataProfile != InstanceManagement.DataProfile.Empty) {
-            properties.forEach {
-                val kirraProperty = kirraEntity.getProperty(it.name)
-                if (kirraProperty != null) {
-                    val propertyValue = it.call(toConvert)
-                    val javaValue = mapJavaValueToKirra(kirraProperty, propertyValue)
-                    instance.setValue(it.name, javaValue)
-                } else if (dataProfile == InstanceManagement.DataProfile.Full) {
-                    val kirraRelationship = kirraEntity.getRelationship(it.name)
-                    if (kirraRelationship != null && !kirraRelationship.isMultiple) {
-                        val link = it.call(toConvert) as BaseEntity?
-                        if (link != null)
-                            instance.setSingleRelated(it.name, toInstance(link, InstanceManagement.DataProfile.Slim))
-                    }
+            properties.forEach { ktProperty ->
+                val propertyRead = collectPropertyValue(ktProperty, kirraEntity, toConvert, { value -> instance.setValue(ktProperty.name, value) })
+                if (!propertyRead && dataProfile == InstanceManagement.DataProfile.Full) {
+                    collectRelationshipValue(ktProperty, kirraEntity, toConvert, { value -> instance.setSingleRelated(ktProperty.name, toInstance(value, InstanceManagement.DataProfile.Slim))})
                 }
             }
         }
+        kirraEntity.mnemonicSlot
+        instance.shorthand = extractShorthand(toConvert, kirraEntity)
         return instance
+    }
+
+    private fun <E> collectRelationshipValue(ktProperty: KProperty1<out E, Any?>, kirraEntity: Entity, toConvert: E, collector: (BaseEntity) -> Unit): Boolean {
+        val kirraRelationship = kirraEntity.getRelationship(ktProperty.name)
+        if (kirraRelationship != null && !kirraRelationship.isMultiple) {
+            val link = ktProperty.call(toConvert) as BaseEntity?
+            if (link != null)
+                collector.invoke(link)
+            return true
+        }
+        return false
+    }
+
+    private fun <E : BaseEntity> collectPropertyValue(ktPropertyName: KProperty1<out E, Any?>, kirraEntity: Entity, toConvert: E, collector : (Any?)-> Unit): Boolean {
+        val slotName = ktPropertyName.name
+        val kirraProperty = kirraEntity.getProperty(slotName)
+        if (kirraProperty != null) {
+            val propertyValue = ktPropertyName.call(toConvert)
+            val javaValue = mapJavaValueToKirra(kirraProperty, propertyValue)
+            collector.invoke(javaValue)
+            return true
+        }
+        return false
+    }
+
+    fun extractShorthand(javaInstance : BaseEntity, kirraEntity : Entity) : String {
+        var shorthand : String? = null
+        val ktProperty = javaInstance::class.memberProperties.firstOrNull { it.name == kirraEntity.mnemonicSlot } ?: javaInstance::class.memberProperties.first()
+        if (ktProperty != null) {
+            val propertyRead = collectPropertyValue(ktProperty, kirraEntity, javaInstance, { value -> shorthand = value?.toString() })
+            if (!propertyRead) {
+                collectRelationshipValue(ktProperty, kirraEntity, javaInstance, { value -> shorthand = toInstance(value, InstanceManagement.DataProfile.Slim)?.shorthand })
+            }
+        }
+        return shorthand ?: javaInstance::class.simpleName + "@"  + javaInstance.id
     }
 
     fun <E : BaseEntity?> getJavaInstance(newInstance: Instance?) : E? {

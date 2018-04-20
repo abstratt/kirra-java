@@ -4,11 +4,14 @@ import com.abstratt.kirra.Operation
 import com.abstratt.kirra.TypeRef
 import org.reflections.Reflections
 import org.reflections.util.ConfigurationBuilder
+import org.springframework.aop.support.AopUtils
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.context.ApplicationContext
 import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
 import java.lang.reflect.AccessibleObject
 import java.lang.reflect.Member
+import javax.management.relation.Relation
 import javax.persistence.EntityManagerFactory
 import javax.persistence.metamodel.Attribute
 import javax.persistence.metamodel.EntityType
@@ -23,7 +26,13 @@ import kotlin.reflect.jvm.*
 class KirraSpringMetamodel {
 
     @Autowired
+    lateinit var applicationContext: ApplicationContext
+
+    @Autowired
     lateinit private var kirraSpringApplication : KirraSpringApplication
+
+    fun getEntityService(typeRef: TypeRef) =
+            applicationContext.getBean(typeRef.typeName.decapitalize() + "Service", BaseService::class.java) as BaseService<BaseEntity, *>
 
     private val reflections by lazy {
         val entityPackageNames = kirraSpringApplication.javaPackages
@@ -138,6 +147,24 @@ class KirraSpringMetamodel {
         val inherited = entityAsKotlinClass.superclasses.filter { it.isSubclassOf(BaseEntity::class) }.map { getAllKotlinProperties(it)}.flatten()
         val declared = entityAsKotlinClass.java.declaredFields.map { it.kotlinProperty }.filterNotNull()
         return inherited + declared
+    }
+
+    fun <E : BaseEntity> isRelationshipAccessor(entityClass :Class<E>, function: KFunction<*>): Boolean {
+        val result = function.findAnnotation<RelationshipAccessor>() != null &&
+                function.valueParameters.size == 1 &&
+                function.valueParameters[0].type?.classifier == entityClass.kotlin &&
+                function.returnType.isSubtypeOf(Iterable::class.starProjectedType) &&
+                BaseEntity::class.isSuperclassOf(function.returnType.arguments[0].type?.classifier as KClass<*>)
+        return result
+    }
+
+    fun getRelationshipAccessor(entityService: BaseService<BaseEntity, *>, entityClass: Class<BaseEntity>, relationshipName: String): KFunction<BaseEntity>? {
+        val memberFunctions = AopUtils.getTargetClass(entityService).kotlin.memberFunctions
+        val relationshipAccessor= memberFunctions.firstOrNull {
+            isRelationshipAccessor(entityClass, it)
+        }
+        return relationshipAccessor as? KFunction<BaseEntity>
+
     }
 }
 

@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration
 @Configuration
 open class KirraApplicationBuilder {
 
-    @Value("\${easyalpha.app.name}")
+    @Value("\${kirra.app.name}")
     lateinit var applicationName : String
 
     @Bean

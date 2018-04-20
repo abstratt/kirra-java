@@ -5,6 +5,7 @@ import com.abstratt.kirra.spring.userprofile.UserProfile
 import com.abstratt.kirra.spring.user.RoleEntity
 import com.abstratt.kirra.spring.user.RoleRepository
 import com.abstratt.kirra.spring.user.UserRole
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -23,6 +24,26 @@ enum class SampleRole : UserRole {
 }
 
 @Entity
+class Category : BaseEntity() {
+    @Column(nullable = false)
+    var name: String? = null
+}
+
+@Repository
+interface CategoryRepository : BaseRepository<Category> {
+}
+
+@Service
+open class CategoryService : BaseService<Category, CategoryRepository>(Category::class) {
+    @Autowired
+    lateinit open var productRepository : ProductRepository
+
+    @RelationshipAccessor
+    fun products(category : Category) : Collection<Product> =
+        productRepository.findAllByCategory(category)
+}
+
+@Entity
 @Named(description = "Products that can be added to a car")
 class Product : BaseEntity() {
     val moniker : String get() = this.name ?: "N/A"
@@ -30,8 +51,8 @@ class Product : BaseEntity() {
     var name: String? = null
     @Column(nullable = false)
     var price: Double? = null
-    @Column(nullable = true)
-    var category: String? = null
+    @ManyToOne(optional = false)
+    var category: Category? = null
 }
 
 @Entity
@@ -143,7 +164,10 @@ interface AccountRepository : BaseRepository<Account>
 interface TransferRepository : BaseRepository<Transfer>
 
 @Repository
-interface ProductRepository : BaseRepository<Product>
+interface ProductRepository : BaseRepository<Product> {
+    @RelationshipAccessor()
+    fun findAllByCategory(category : Category) : Collection<Product>
+}
 
 @Repository
 interface OrderItemRepository : BaseRepository<OrderItem>

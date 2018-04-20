@@ -10,40 +10,28 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ApplicationContext
 import org.springframework.security.access.annotation.Secured
 import org.springframework.stereotype.Component
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
 import java.util.TreeSet
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
+import kotlin.reflect.KProperty1
 import kotlin.reflect.full.*
 import kotlin.reflect.jvm.javaMethod
 
-@Component
-class KirraSpringInstanceManagement : InstanceManagement {
-    @Autowired
-    lateinit var applicationContext: ApplicationContext
-
-    @Autowired
-    private lateinit var kirraSpringApplication : KirraSpringApplication
-
-    @Autowired
-    private lateinit var kirraSpringMetamodel: KirraSpringMetamodel
-
-    @Autowired
-    private lateinit var kirraSpringInstanceBridge: KirraSpringInstanceBridge
-
-    @Autowired
-    private lateinit var schemaManagement: SchemaManagement
-
-    @Autowired
-    private lateinit var userProfileService: UserProfileService
-
-    @Autowired
-    private lateinit var roleService: RoleService
-
-    @Autowired
-    private lateinit var securityService: SecurityService
+@Service
+@Transactional
+open class KirraSpringInstanceManagement (
+    private val kirraSpringMetamodel: KirraSpringMetamodel,
+    private val kirraSpringInstanceBridge: KirraSpringInstanceBridge,
+    private val schemaManagement: SchemaManagement,
+    private val securityService: SecurityService
+) : InstanceManagement {
 
     @Secured
+    @Transactional(readOnly = false, propagation = Propagation.REQUIRES_NEW)
     override fun createInstance(instance: Instance): Instance {
         val asEntity : BaseEntity = kirraSpringInstanceBridge.fromInstance(instance)
         val asService : BaseService<BaseEntity,*> = getEntityService(instance.typeRef)
@@ -53,6 +41,7 @@ class KirraSpringInstanceManagement : InstanceManagement {
         return createdInstance
     }
 
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     override fun getInstance(namespace: String, entityName: String, externalId: String, dataProfile: InstanceManagement.DataProfile?): Instance {
         val found = retrieveJavaInstance(namespace, entityName, externalId)
         KirraException.ensure(found != null, KirraException.Kind.OBJECT_NOT_FOUND, {null})
@@ -67,6 +56,7 @@ class KirraSpringInstanceManagement : InstanceManagement {
         return found
     }
 
+    @Transactional(readOnly = false, propagation = Propagation.REQUIRES_NEW)
     override fun updateInstance(instance: Instance): Instance {
         val asEntity : BaseEntity = kirraSpringInstanceBridge.fromInstance(instance)
         asEntity.id = instance.objectId.toLong()
@@ -78,10 +68,10 @@ class KirraSpringInstanceManagement : InstanceManagement {
         return updatedInstance
     }
 
-
     private fun getEntityService(typeRef: TypeRef) =
-            applicationContext.getBean(typeRef.typeName.decapitalize() + "Service", BaseService::class.java) as BaseService<BaseEntity, *>
+            kirraSpringMetamodel.getEntityService(typeRef)
 
+    @Transactional(readOnly = false, propagation = Propagation.REQUIRES_NEW)
     override fun linkInstances(relationship: Relationship?, sourceId: String?, destinationId: InstanceRef?) {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
@@ -90,10 +80,12 @@ class KirraSpringInstanceManagement : InstanceManagement {
         throw UnsupportedOperationException("zap not supported")
     }
 
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     override fun getEnabledEntityActions(entity: Entity?): MutableList<Operation> {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     override fun getRelationshipDomain(entity: Entity, objectId: String, relationship: Relationship): MutableList<Instance> {
         //TODO-RC honor relationship constraints
         return getInstances(relationship.typeRef.entityNamespace, relationship.typeRef.typeName, InstanceManagement.DataProfile.Slim)
@@ -210,6 +202,7 @@ class KirraSpringInstanceManagement : InstanceManagement {
         return InstanceCapabilities(instanceCapabilities, attributeCapabilities, relationshipCapabilities, actionCapabilities)
     }
 
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     override fun getCurrentUser(): Instance? =
             securityService.getCurrentUser()?.let {
                 val toConvert = it
@@ -226,6 +219,7 @@ class KirraSpringInstanceManagement : InstanceManagement {
         return getInstances(namespace, name, profile);
     }
 
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     override fun getInstances(namespace: String, entityName: String, dataProfile: InstanceManagement.DataProfile?): MutableList<Instance> {
         val entityClass : Class<BaseEntity>? = kirraSpringMetamodel.getEntityClass(namespace, entityName)
         val asService : BaseService<BaseEntity,*> = getEntityService(TypeRef(namespace, entityName, TypeRef.TypeKind.Entity))
@@ -240,11 +234,13 @@ class KirraSpringInstanceManagement : InstanceManagement {
         return true
     }
 
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     override fun executeQuery(operation: Operation, externalId: String?, arguments: MutableList<*>?, pageRequest: InstanceManagement.PageRequest?): MutableList<*> {
         val (service, javaInstance: Any?, result) = doExecuteOperation(operation, externalId, arguments)
         return result
     }
 
+    @Transactional(readOnly = false, propagation = Propagation.REQUIRES_NEW)
     override fun executeOperation(operation: Operation, externalId: String?, arguments: MutableList<*>?): MutableList<*> {
         val (service, javaInstance: Any?, result) = doExecuteOperation(operation, externalId, arguments)
 
@@ -291,7 +287,7 @@ class KirraSpringInstanceManagement : InstanceManagement {
             kotlinMatchedArguments[serviceFunction.valueParameters[0]] = entityInstance
 
         val callResult = boundFunction.callBy(kotlinMatchedArguments)
-        val asList = if (callResult == null)
+        val asList = if (callResult == null || callResult is Unit)
             emptyList<Any>().toMutableList()
         else if (callResult is Iterable<*>)
             callResult.toMutableList()
@@ -310,6 +306,7 @@ class KirraSpringInstanceManagement : InstanceManagement {
         return getInstances(parameter.typeRef.entityNamespace, parameter.typeRef.typeName, InstanceManagement.DataProfile.Slim)
     }
 
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     override fun newInstance(namespace: String, entityName: String): Instance {
         val entityClass : Class<BaseEntity>? = kirraSpringMetamodel.getEntityClass(namespace, entityName)
         KirraException.ensure(entityClass != null, KirraException.Kind.ENTITY, { "${namespace}.${entityName}"})
@@ -321,16 +318,26 @@ class KirraSpringInstanceManagement : InstanceManagement {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     override fun getRelatedInstances(namespace: String, entityName: String, externalId: String, relationshipName: String, dataProfile: InstanceManagement.DataProfile?): MutableList<Instance> {
+        val entityRef = TypeRef(namespace, entityName, TypeRef.TypeKind.Entity)
+        val entityClass = kirraSpringMetamodel.getEntityClass(entityRef)
         val found = retrieveJavaInstance(namespace, entityName, externalId)
         KirraException.ensure(found != null, KirraException.Kind.OBJECT_NOT_FOUND, {null})
-        val toConvert = found!!
-        val relationshipKProperty = toConvert::class.memberProperties.firstOrNull { it.name == relationshipName }
-        KirraException.ensure(relationshipKProperty != null, KirraException.Kind.ELEMENT_NOT_FOUND, {null})
-        val relatedObjects = relationshipKProperty!!.call(toConvert) as Iterable<BaseEntity> ?: emptyList()
-        return kirraSpringInstanceBridge.toInstances(relatedObjects).toMutableList()
+        val relationshipKProperty = found!!::class.memberProperties.firstOrNull { it.name == relationshipName }
+        val entityService = getEntityService(entityRef)
+        var relatedObjects : Iterable<BaseEntity>? = null
+        if (relationshipKProperty != null) {
+            relatedObjects = entityService.getRelated(externalId.toLong(), relationshipKProperty as KProperty1<BaseEntity, BaseEntity>)
+        } else {
+            val relationshipAccessor = kirraSpringMetamodel.getRelationshipAccessor(entityService, entityClass!!, relationshipName)
+            KirraException.ensure(relationshipAccessor != null, KirraException.Kind.ELEMENT_NOT_FOUND, null)
+            relatedObjects = relationshipAccessor!!.call(entityService, found) as? Iterable<BaseEntity>
+        }
+        return kirraSpringInstanceBridge.toInstances(relatedObjects!!).toMutableList()
     }
 
+    @Transactional(readOnly = false, propagation = Propagation.REQUIRES_NEW)
     override fun unlinkInstances(relationship: Relationship?, sourceId: String?, destinationId: InstanceRef?) {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }

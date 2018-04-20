@@ -8,6 +8,8 @@ import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.stereotype.Repository
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
 import javax.persistence.*
 import kotlin.reflect.KClass
 
@@ -71,6 +73,7 @@ open class RoleService {
 
 
 @Service
+@Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
 open class UserProfileService : BaseService<UserProfile, UserProfileRepository>(UserProfile::class) {
 
     fun findUserByUsername(username: String) = repository.findByUsername(username)

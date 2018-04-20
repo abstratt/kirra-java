@@ -66,7 +66,7 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
 
     fun buildEntity(namespaceName: String, entityType: EntityType<*>): Entity {
         val newEntity = Entity()
-        val entityAsJavaClass = entityType.javaType
+        val entityAsJavaClass = entityType.javaType as Class<BaseEntity>
         val entityAsKotlinClass = entityAsJavaClass.kotlin
         val tmpObject = entityAsKotlinClass.createInstance()
 
@@ -79,17 +79,25 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
 
         val storedRelationships = this.buildStoredRelationships(entityType)
         val derivedRelationships = entityAsKotlinClass.memberProperties.filter { kirraSpringMetamodel.isEntityClass(it.returnType.javaClass) && it.javaField == null && !(it is KMutableProperty<*>) }.map { buildDerivedRelationship(it) }
-        val allRelationships = storedRelationships + derivedRelationships
-        newEntity.relationships = allRelationships
-
+        var invertedRelationships = emptyList<Relationship>()
         val allOperations = this.buildInstanceOperations(entityType).toMutableList()
         try {
             val serviceClass = entityAsJavaClass.classLoader.loadClass(entityAsJavaClass.name + "Service")
             val serviceBean = applicationContext.getBean(entityType.name.decapitalize() + "Service", serviceClass)
-            val serviceFunctions = serviceClass.methods.filter { it.kotlinFunction != null && kirraSpringMetamodel.isKirraOperation(it.kotlinFunction!!) }.map { it.kotlinFunction!! }
-            val serviceFunctionsAreInstanceOrEntity = serviceFunctions.groupBy {
+            val serviceFunctions = serviceClass.methods.filter {
+                it.kotlinFunction != null && (
+                    kirraSpringMetamodel.isKirraOperation(it.kotlinFunction!!) ||
+                    kirraSpringMetamodel.isRelationshipAccessor(entityAsJavaClass, it.kotlinFunction!!)
+                )
+            }.map { it.kotlinFunction!! }
+            val serviceOperations = serviceFunctions.filter { kirraSpringMetamodel.isKirraOperation(it) }
+            val serviceFunctionsAreInstanceOrEntity = serviceOperations.groupBy {
                 it.valueParameters.firstOrNull()?.type?.classifier == entityAsKotlinClass
             }
+            invertedRelationships = serviceFunctions.filter {
+                kirraSpringMetamodel.isRelationshipAccessor(entityAsJavaClass, it)
+            }.map { buildInvertedRelationship(it) }
+
             val entityOperations = serviceFunctionsAreInstanceOrEntity[false]
                     ?.map { buildOperation(it,false) } ?: emptyList()
             // service-defined instance actions
@@ -101,6 +109,8 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
             // no service class
             logger.info("No service class for {}", newEntity.typeRef)
         }
+        val allRelationships = storedRelationships + derivedRelationships + invertedRelationships
+        newEntity.relationships = allRelationships
         newEntity.operations = allOperations
         newEntity.isConcrete = !entityAsKotlinClass.isAbstract
         newEntity.isTopLevel = newEntity.isConcrete || newEntity.operations.any { it.kind == Operation.OperationKind.Finder }
@@ -131,6 +141,32 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
         }
         logger.info("Built entity ${newEntity.typeRef} from ${entityAsJavaClass.name}")
         return newEntity
+    }
+
+    private fun buildInvertedRelationship(relationshipAccessor: KFunction<*>): Relationship {
+        val relationship = Relationship()
+        val accessorAnnotation = relationshipAccessor.findAnnotation<RelationshipAccessor>()!!
+        setName(relationship, CallableNameProvider(relationshipAccessor))
+        val relationshipType = relationshipAccessor.returnType
+        relationship.typeRef = getTypeRef(relationshipType)
+        val oppositeName = relationshipAccessor.valueParameters[0].name!!
+        relationship.style = accessorAnnotation.style
+        relationship.isEditable = relationship.style != Relationship.Style.PARENT
+        relationship.isInitializable = relationship.style != Relationship.Style.PARENT
+        relationship.isMultiple = (relationshipType.classifier as KClass<*>).isSubclassOf(Iterable::class)
+        relationship.isRequired = false
+        if (oppositeName != null) {
+            relationship.opposite = oppositeName
+            relationship.isOppositeReadOnly = true
+            relationship.isOppositeRequired = true
+        }
+        relationship.isHasDefault = false
+        relationship.isInitializable = false
+        relationship.isEditable = false
+        relationship.isDerived = true
+        relationship.isUserVisible = isUserVisible(relationshipAccessor.javaMethod)
+        logger.info("Built relationship ${relationship.name} from ${relationshipAccessor}")
+        return relationship
     }
 
     private fun buildDerivedRelationship(ktProperty: KProperty<*>): Relationship {
@@ -265,8 +301,7 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
         relationship.isInitializable = relationship.style != Relationship.Style.PARENT && attribute.isInitializable()
         relationship.isMultiple = attribute.isMultiple()
         relationship.isRequired = relationship.style == Relationship.Style.PARENT || attribute.isRequired()
-        val multiple = attribute is CollectionAttribute<*, *>
-        relationship.isMultiple = multiple
+        relationship.isMultiple = attribute.isMultiple()
         if (opposite != null) {
             relationship.opposite = opposite.name
             relationship.isOppositeReadOnly = relationship.style == Relationship.Style.CHILD || opposite.isReadOnly()
@@ -384,11 +419,21 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
                 else -> null
             }
 
-    private fun getTypeRef(type: Type<out Any>, kind : TypeRef.TypeKind = TypeRef.TypeKind.Entity): TypeRef {
-        return getTypeRef(type.javaType, kind)
-    }
+    private fun getTypeRef(type: Type<out Any>, kind : TypeRef.TypeKind = TypeRef.TypeKind.Entity): TypeRef =
+        getTypeRef(type.javaType, kind)
+
+    private fun getTypeRef(type : KType, kind : TypeRef.TypeKind = TypeRef.TypeKind.Entity): TypeRef =
+        if ((type.classifier as KClass<*>).isSubclassOf(Iterable::class))
+            getTypeRef(type.arguments[0].type!!)
+        else
+            getTypeRef((type.classifier as KClass<*>).java)
+
 
     private fun getTypeRef(javaType: Class<*>, kind : TypeRef.TypeKind = TypeRef.TypeKind.Entity): TypeRef {
+        if (Iterable::class.isSuperclassOf(javaType.kotlin)) {
+            val actualClass = (javaType.kotlin.typeParameters.first().upperBounds.first().classifier as KClass<*>).java
+            return getTypeRef(actualClass)
+        }
         val javaPackage = javaType.`package`
         val simpleName = if (javaType.isMemberClass) (javaType.enclosingClass.simpleName + "+" + javaType.simpleName) else javaType.simpleName
         return TypeRef(packageNameToNamespace(javaPackage.name), simpleName, kind)

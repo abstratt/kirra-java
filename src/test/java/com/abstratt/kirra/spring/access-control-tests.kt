@@ -8,6 +8,7 @@ import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.transaction.annotation.Transactional
 import javax.persistence.EntityManager
 import javax.persistence.PersistenceContext
 
@@ -40,6 +41,7 @@ open class AccessControlTests : TestBase() {
     private var employee2: Employee? = null
 
     @Before
+    @Transactional
     fun setUp(): Unit {
         user1 = persist(UserProfile(username = "user1", password = ""))
         user2 = persist(UserProfile(username = "user2", password = ""))

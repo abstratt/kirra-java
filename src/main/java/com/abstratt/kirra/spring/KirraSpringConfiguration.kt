@@ -1,16 +1,20 @@
 package com.abstratt.kirra.spring
 
 import com.abstratt.kirra.*
+import com.abstratt.kirra.spring.api.SecurityService
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.transaction.annotation.EnableTransactionManagement
 import javax.persistence.EntityManager
+import javax.persistence.EntityManagerFactory
 import javax.persistence.PersistenceContext
 import kotlin.reflect.KClass
 
 @Configuration
+@EnableTransactionManagement
 open class KirraSpringConfiguration {
 
     companion object {
@@ -22,8 +26,15 @@ open class KirraSpringConfiguration {
                 schemaBuilder.build()
     }
 
+
+    @Autowired
+    private lateinit var entityManagerFactory: EntityManagerFactory
+
     @Autowired
     lateinit private var kirraSpringMetamodel: KirraSpringMetamodel
+
+    @Autowired
+    lateinit private var kirraSpringInstanceBridge: KirraSpringInstanceBridge
 
     @Autowired
     lateinit private var kirraRepositoryRegistry: KirraRepositoryRegistry
@@ -31,9 +42,15 @@ open class KirraSpringConfiguration {
     @Autowired
     private lateinit var applicationContext: ConfigurableApplicationContext
 
+    @Autowired
+    private lateinit var securityService: SecurityService
+
+    @Autowired
+    private lateinit var schemaManagement: SchemaManagement
+
     @Bean
-    open fun schemaManagement(@Autowired schema : Schema) : SchemaManagement =
-        SchemaManagementSnapshot(schema)
+    open fun instanceManagement() : InstanceManagement =
+        KirraSpringInstanceManagement(kirraSpringMetamodel, kirraSpringInstanceBridge, schemaManagement, securityService)
 
     @Autowired
     private fun createServices(schema : Schema) {

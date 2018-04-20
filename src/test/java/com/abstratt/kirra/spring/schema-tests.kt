@@ -59,7 +59,7 @@ open class SchemaTests : TestBase() {
         val entity = schema.allEntities.find { it.name == Product::class.simpleName }
         assertNotNull(entity)
         val properties = entity!!.properties
-        assertEquals(4, properties.size)
+        assertEquals(3, properties.size)
 
         val nameProperty = properties.find { it.name == Product::name.name }!!
         assertEquals("String", nameProperty.type)
@@ -73,18 +73,19 @@ open class SchemaTests : TestBase() {
         assertEquals("kirra.Double", priceProperty.typeRef.fullName)
         assertTrue(priceProperty.isRequired)
 
-        val categoryProperty = properties.find { it.name == Product::category.name }!!
-        assertEquals("String", categoryProperty.type)
-        assertEquals(TypeRef.TypeKind.Primitive, categoryProperty.typeRef.kind)
-        assertEquals("kirra.String", categoryProperty.typeRef.fullName)
-        assertFalse(categoryProperty.isRequired)
-
         val monikerProperty = properties.find { it.name == Product::moniker.name }!!
         assertEquals("String", monikerProperty.type)
         assertEquals(TypeRef.TypeKind.Primitive, monikerProperty.typeRef.kind)
         assertEquals("kirra.String", monikerProperty.typeRef.fullName)
         assertFalse(monikerProperty.isRequired)
         assertTrue(monikerProperty.isDerived)
+    }
+
+    @Test
+    fun testRelationships() {
+        val entity = schema.allEntities.first { it.name == Category::class.simpleName }
+        val productsRelationship = entity.getRelationship("products")
+        assertEquals(Product::class.simpleName, productsRelationship.typeRef.typeName)
     }
 
     @Test

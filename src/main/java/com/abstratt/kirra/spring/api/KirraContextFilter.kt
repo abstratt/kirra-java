@@ -1,21 +1,12 @@
 package com.abstratt.kirra.spring.api
 
+import com.abstratt.kirra.InstanceManagement
 import com.abstratt.kirra.SchemaManagement
 import com.abstratt.kirra.SchemaManagementSnapshot
 import com.abstratt.kirra.rest.common.KirraContext
 import com.abstratt.kirra.spring.KirraSpringApplication
-import com.abstratt.kirra.spring.KirraSpringInstanceManagement
 import com.abstratt.kirra.spring.user.KirraSpringAuthenticationProvider
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.security.authentication.AuthenticationDetailsSource
-import org.springframework.security.authentication.AuthenticationManager
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
-import org.springframework.security.core.Authentication
-import org.springframework.security.core.AuthenticationException
-import org.springframework.security.core.context.SecurityContextHolder
-import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
 import java.net.URI
@@ -32,7 +23,7 @@ class KirraContextFilter : OncePerRequestFilter() {
     @Autowired
     private lateinit var schemaManagement: SchemaManagement
     @Autowired
-    private lateinit var instanceManagement: KirraSpringInstanceManagement
+    private lateinit var instanceManagement: InstanceManagement
 
     override fun doFilterInternal(request: HttpServletRequest, response: HttpServletResponse, filterChain: FilterChain) {
         val baseUri = URI.create(request.requestURL.toString())

@@ -1,5 +1,7 @@
 package com.abstratt.kirra.spring
 
+import com.abstratt.kirra.Relationship
+
 annotation class Named (
         val label : String = "",
         val description : String = "",
@@ -12,6 +14,11 @@ annotation class ActionOp
 
 @Target(AnnotationTarget.FUNCTION)
 annotation class QueryOp
+
+@Target(AnnotationTarget.FUNCTION)
+annotation class RelationshipAccessor(
+    val style : Relationship.Style = Relationship.Style.LINK
+)
 
 @Target(AnnotationTarget.FUNCTION)
 annotation class ImplementationOp
