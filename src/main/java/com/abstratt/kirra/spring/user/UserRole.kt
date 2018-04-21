@@ -73,13 +73,14 @@ open class RoleService {
 
 
 @Service
-@Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+@Transactional(readOnly = true, propagation = Propagation.REQUIRED)
 open class UserProfileService : BaseService<UserProfile, UserProfileRepository>(UserProfile::class) {
 
     fun findUserByUsername(username: String) = repository.findByUsername(username)
 
     fun findUserByUsernameAndPassword(username: String, password: String) = repository.findByUsernameAndPassword(username, password)
 
+    @Transactional
     override fun update(toUpdate: UserProfile): UserProfile? {
         val existingInstance = repository.findById(toUpdate.id)
         if (existingInstance.isPresent) {
@@ -91,6 +92,7 @@ open class UserProfileService : BaseService<UserProfile, UserProfileRepository>(
         return existingInstance.get()
     }
 
+    @Transactional
     override fun create(toCreate: UserProfile) : UserProfile {
         BusinessException.ensure(toCreate.readPassword() != null, ErrorCode.INVALID_OR_MISSING_DATA, "password")
         return super.create(toCreate)

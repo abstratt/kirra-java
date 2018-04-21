@@ -197,6 +197,13 @@
             <groupId>org.glassfish.jersey.core</groupId>
             <artifactId>jersey-server</artifactId>
             <version>2.27</version>
+            <exclusions>
+                <exclusion>
+                    <!-- Hibernate expects version 2+ -->
+                    <groupId>javax.validation</groupId>
+                    <artifactId>validation-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>

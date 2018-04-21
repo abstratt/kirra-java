@@ -28,19 +28,6 @@ open class KirraAppFlywayTestingConfiguration {
 @EnableJpaRepositories(basePackageClasses = [UserProfileMarker::class, KirraSpringMarker::class, KirraSpringAPIMarker::class, SampleMarker::class])
 @PropertySource("classpath:application.properties")
 open class TestConfig {
-/*    @Bean
-    open fun entityManagerFactory() : LocalContainerEntityManagerFactoryBean {
-        val em = LocalContainerEntityManagerFactoryBean()
-        em.setPackagesToScan(SampleMarker::class.java.`package`.name, KirraSpringMarker::class.java.`package`.name)
-        em.persistenceProvider = HibernatePersistenceProvider()
-        val vendorAdapter = HibernateJpaVendorAdapter()
-        em.jpaVendorAdapter = vendorAdapter
-        val properties = Properties()
-        properties[Environment.DIALECT] = PostgreSQL92Dialect::class.java.name
-        em.setJpaProperties(properties)
-        return em
-    }*/
-
     @Bean
     open fun propertySourcesPlaceholderConfigurer(): PropertySourcesPlaceholderConfigurer {
         val configurer = PropertySourcesPlaceholderConfigurer()

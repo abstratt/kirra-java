@@ -3,5 +3,5 @@ package com.abstratt.kirra.spring
 import org.springframework.data.jpa.repository.JpaRepository
 import kotlin.reflect.KClass
 
-class GenericService(entityClass : KClass<BaseEntity>) : BaseService<BaseEntity, JpaRepository<BaseEntity, Long>>(entityClass){
+class GenericService<E : BaseEntity>(entityClass : KClass<E>) : BaseService<E, JpaRepository<E, Long>>(entityClass){
 }

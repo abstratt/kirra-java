@@ -20,7 +20,7 @@ open class SampleApplication : KirraJavaApplication(SampleRole.values().asIterab
 
 
 enum class SampleRole : UserRole {
-    Customer, Employee;
+    Customer, Employee
 }
 
 @Entity
@@ -73,6 +73,7 @@ enum class OrderStatus {
 }
 
 @Entity
+@Table(name = "customer_order")
 class Order(id: Long? = null) : BaseEntity(id) {
     @Enumerated(EnumType.STRING)
     var status : OrderStatus? = OrderStatus.Open

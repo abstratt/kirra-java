@@ -12,10 +12,10 @@ import kotlin.reflect.KMutableProperty
  * a set of trigger events, an optional guard predicate, 
  * and an optional effect behavior.
  */
-open class StateMachine<ST : StateToken, SE : StateEvent> (
+open class StateMachine<ST : StateToken, SE : StateEvent, SC : StateContext<ST, SE>> (
         val stateProperty : KMutableProperty<ST?>,
-        val activeStates : Iterable<State<ST, *>>,
-        val transitions : Iterable<Transition<ST, SE, *>>
+        val activeStates : Iterable<State<ST, SC>>,
+        val transitions : Iterable<Transition<ST, SE, SC>>
 ) {
     init {
         assert(stateProperty.returnType.javaClass.isEnum, { "${stateProperty.name} must be an enumeration" })
@@ -57,11 +57,11 @@ open class StateMachine<ST : StateToken, SE : StateEvent> (
             states.find { it.token == stateToken } as State<ST, *>
 }
 
-fun <ST : StateToken, SE: StateEvent, SC : StateContext<ST,SE>> SC.findStateMachine(): StateMachine<ST, SE> =
+fun <ST : StateToken, SE: StateEvent, SC : StateContext<ST,SE>> SC.findStateMachine(): StateMachine<ST, SE, SC> =
         this::class.nestedClasses
                 .mapNotNull { it.objectInstance }
                 .filter { StateMachine::class.isInstance(it) }
-                .map { it as StateMachine<ST, SE> }
+                .map { it as StateMachine<ST, SE, SC> }
                 .first()
 
 class State<ST : StateToken, SC : StateContext<ST, *>> (
@@ -121,7 +121,7 @@ interface StateToken {
  */
 open class StateMachineInstance<ST : StateToken, SE : StateEvent, SC : StateContext<ST, SE>>(val context : SC) {
 
-    private val stateMachine: StateMachine<ST, SE> by lazy { context.findStateMachine() }
+    private val stateMachine: StateMachine<ST, SE, SC> by lazy { context.findStateMachine() }
 
     fun publish(event: StateEvent) : Boolean {
         val stateToken = currentStateToken
