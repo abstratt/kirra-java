@@ -5,6 +5,7 @@ import com.abstratt.kirra.Relationship
 import com.abstratt.kirra.Schema
 import com.abstratt.kirra.TypeRef
 import com.abstratt.kirra.spring.testing.sample.*
+import com.abstratt.kirra.spring.userprofile.UserProfile
 import org.apache.commons.lang3.StringUtils
 import org.junit.Assert.*
 import org.junit.Test
@@ -50,8 +51,14 @@ open class SchemaTests : TestBase() {
         assertEquals("sample", productEntity.entityNamespace)
         assertTrue(productEntity.isTopLevel)
         assertTrue(productEntity.isStandalone)
-         assertTrue(productEntity.isInstantiable)
+        assertTrue(productEntity.isInstantiable)
         assertTrue(productEntity.isConcrete)
+    }
+
+    @Test
+    fun testEntity_otherPackages() {
+        val entity = schema.allEntities.find { it.name == UserProfile::class.simpleName }
+        assertNotNull(entity)
     }
 
     @Test
@@ -82,10 +89,21 @@ open class SchemaTests : TestBase() {
     }
 
     @Test
-    fun testRelationships() {
-        val entity = schema.allEntities.first { it.name == Category::class.simpleName }
-        val productsRelationship = entity.getRelationship("products")
+    fun testRelationships_categoryProducts() {
+        val categoryEntity = schema.allEntities.first { it.name == Category::class.simpleName }
+        val productsRelationship = categoryEntity.getRelationship("products")
+        assertNotNull(productsRelationship)
         assertEquals(Product::class.simpleName, productsRelationship.typeRef.typeName)
+    }
+
+    @Test
+    fun testRelationships_profileAsEmployee() {
+        val profileEntity = schema.allEntities.first { it.name == UserProfile::class.simpleName }
+        val asEmployeeRelationship = profileEntity.getRelationship("roleAsEmployee")
+        assertNotNull(asEmployeeRelationship)
+        assertEquals(Employee::class.simpleName, asEmployeeRelationship.typeRef.typeName)
+        assertFalse(asEmployeeRelationship.isMultiple)
+        assertFalse(asEmployeeRelationship.isRequired)
     }
 
     @Test
@@ -100,8 +118,6 @@ open class SchemaTests : TestBase() {
         val byStatusQuery = queries.find { it.name == OrderService::byStatus.name }
         assertNotNull(byStatusQuery)
     }
-
-
 
     @Test
     fun testNamed() {

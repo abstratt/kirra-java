@@ -1,0 +1,1 @@
+-- A placeholder migration file, just to keep Flyway happy

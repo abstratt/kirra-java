@@ -1,12 +1,14 @@
 package com.abstratt.kirra.spring.testing.sample
 
 import com.abstratt.kirra.spring.*
-import com.abstratt.kirra.spring.userprofile.UserProfile
+import com.abstratt.kirra.spring.api.KirraSpringAPIMarker
 import com.abstratt.kirra.spring.user.RoleEntity
+import com.abstratt.kirra.spring.user.RoleEntityService
 import com.abstratt.kirra.spring.user.RoleRepository
 import com.abstratt.kirra.spring.user.UserRole
+import com.abstratt.kirra.spring.userprofile.UserProfile
+import com.abstratt.kirra.spring.userprofile.UserProfileMarker
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Repository
@@ -15,7 +17,7 @@ import javax.persistence.*
 
 interface SampleMarker
 
-@SpringBootApplication
+@KirraApplicationConfiguration(basePackageClasses = [UserProfileMarker::class, KirraSpringMarker::class, KirraSpringAPIMarker::class, SampleApplication::class])
 open class SampleApplication : KirraJavaApplication(SampleRole.values().asIterable())
 
 
@@ -117,6 +119,12 @@ class Employee(id : Long? = null, name : String? = null, user : UserProfile? = n
     override fun getRole(): UserRole = SampleRole.Employee
 }
 
+@Service
+open class EmployeeService : RoleEntityService<Employee, EmployeeRepository>(Employee::class) {
+    @RelationshipAccessor
+    open fun roleAsEmployee(profile : UserProfile) = repository.findByUser(profile)
+}
+
 @Entity
 class Customer(id : Long? = null, name : String? = null, user : UserProfile? = null) : Person(id, name, user) {
     @OneToMany(orphanRemoval = false, mappedBy = "customer")
@@ -150,6 +158,9 @@ class Customer(id : Long? = null, name : String? = null, user : UserProfile? = n
 open class CustomerService : BaseService<Customer, CustomerRepository>(Customer::class) {
     @QueryOp
     fun allCustomers(pageable : Pageable? = null) : Page<Customer> = repository.findAll(pageable)
+
+    @RelationshipAccessor
+    open fun roleAsCustomer(profile : UserProfile) = repository.findByUser(profile)
 }
 
 @Repository

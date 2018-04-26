@@ -17,7 +17,8 @@ annotation class QueryOp
 
 @Target(AnnotationTarget.FUNCTION)
 annotation class RelationshipAccessor(
-    val style : Relationship.Style = Relationship.Style.LINK
+    val style : Relationship.Style = Relationship.Style.LINK,
+    val derived : Boolean = false
 )
 
 @Target(AnnotationTarget.FUNCTION)

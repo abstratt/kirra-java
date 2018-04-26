@@ -23,9 +23,7 @@ open class KirraAppFlywayTestingConfiguration {
 
 
 @Configuration()
-@ComponentScan(basePackageClasses = [UserProfileMarker::class, KirraSpringMarker::class, KirraSpringAPIMarker::class, SampleMarker::class])
-@EntityScan(basePackageClasses = [UserProfileMarker::class, KirraSpringMarker::class, KirraSpringAPIMarker::class, SampleMarker::class])
-@EnableJpaRepositories(basePackageClasses = [UserProfileMarker::class, KirraSpringMarker::class, KirraSpringAPIMarker::class, SampleMarker::class])
+@KirraApplicationConfiguration(basePackageClasses = [UserProfileMarker::class, KirraSpringMarker::class, KirraSpringAPIMarker::class, SampleMarker::class])
 @PropertySource("classpath:application.properties")
 open class TestConfig {
     @Bean

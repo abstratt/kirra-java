@@ -2,7 +2,7 @@ package com.abstratt.kirra.spring
 
 import com.abstratt.kirra.Schema
 import com.abstratt.kirra.spring.testing.sample.*
-import com.abstratt.kirra.spring.user.UserProfileService
+import com.abstratt.kirra.spring.userprofile.UserProfileService
 import com.abstratt.kirra.spring.userprofile.UserProfile
 import org.junit.Assert
 import org.junit.Before

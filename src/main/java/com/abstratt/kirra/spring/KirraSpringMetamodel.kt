@@ -5,8 +5,10 @@ import com.abstratt.kirra.TypeRef
 import org.reflections.Reflections
 import org.reflections.util.ConfigurationBuilder
 import org.springframework.aop.support.AopUtils
+import org.springframework.beans.factory.NoSuchBeanDefinitionException
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ApplicationContext
+import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
 import java.lang.reflect.AccessibleObject
@@ -21,15 +23,22 @@ import kotlin.reflect.*
 import kotlin.reflect.full.*
 import kotlin.reflect.jvm.*
 
-
 @Component
 class KirraSpringMetamodel {
 
     @Autowired
-    lateinit var applicationContext: ApplicationContext
+    lateinit var applicationContext: ConfigurableApplicationContext
 
     @Autowired
     lateinit private var kirraSpringApplication : KirraSpringApplication
+
+    fun <BS : BaseService<*, *>> getEntityServiceClass(typeRef: TypeRef) : KClass<BS> =
+        try {
+            val customServiceClass = AopUtils.getTargetClass(getEntityService(typeRef)).kotlin as KClass<BS>
+            customServiceClass
+        } catch (e : NoSuchBeanDefinitionException) {
+            GenericService::class as KClass<BS>
+        }
 
     fun getEntityService(typeRef: TypeRef) =
             applicationContext.getBean(typeRef.typeName.decapitalize() + "Service", BaseService::class.java) as BaseService<BaseEntity, *>
@@ -62,6 +71,9 @@ class KirraSpringMetamodel {
         jpaMetamodel.entities.associateBy { it.name }
     }
 
+    fun isEntityClass(clazz: KClassifier): Boolean =
+            clazz is KClass<*> && entityClasses.containsKey(clazz.qualifiedName)
+
     fun isEntityClass(clazz: Class<*>): Boolean =
         entityClasses.containsKey(clazz.name)
 
@@ -73,6 +85,12 @@ class KirraSpringMetamodel {
         return found
     }
     fun getEntityClass(typeRef: TypeRef) = getEntityClass(typeRef.namespace, typeRef.typeName)
+
+    fun getServiceClass(typeRef : TypeRef) {
+        val serviceName = typeRef.typeName.decapitalize() + "Service"
+        val existingService = applicationContext.beanFactory.getSingleton(serviceName)
+
+    }
 
     fun getEnumClass(typeRef: TypeRef) : Class<Enum<*>>? {
         val packageName = namespaceToPackageName(typeRef.namespace)
@@ -149,24 +167,31 @@ class KirraSpringMetamodel {
         return inherited + declared
     }
 
-    fun <E : BaseEntity> isRelationshipAccessor(entityClass :Class<E>, function: KFunction<*>): Boolean {
+    fun isRelationshipAccessor(function: KFunction<*>): Boolean {
         val result = function.findAnnotation<RelationshipAccessor>() != null &&
-                function.valueParameters.size == 1 &&
-                function.valueParameters[0].type?.classifier == entityClass.kotlin &&
-                function.returnType.isSubtypeOf(Iterable::class.starProjectedType) &&
-                BaseEntity::class.isSuperclassOf(function.returnType.arguments[0].type?.classifier as KClass<*>)
+            function.valueParameters.size == 1 &&
+            (function.valueParameters[0].type?.classifier?.let { it as KClass<*> }?.let { isEntityClass(it) } ?: false) &&
+            (
+                (
+                    function.returnType.isSubtypeOf(Iterable::class.starProjectedType) &&
+                    BaseEntity::class.isSuperclassOf(function.returnType.arguments[0].type?.classifier as KClass<*>)
+                ) || (
+                    BaseEntity::class.isSuperclassOf(function.returnType.classifier as KClass<*>)
+                )
+            )
         return result
     }
 
     fun getRelationshipAccessor(entityService: BaseService<BaseEntity, *>, entityClass: Class<BaseEntity>, relationshipName: String): KFunction<BaseEntity>? {
         val memberFunctions = AopUtils.getTargetClass(entityService).kotlin.memberFunctions
         val relationshipAccessor= memberFunctions.firstOrNull {
-            isRelationshipAccessor(entityClass, it)
+            isRelationshipAccessor(it)
         }
         return relationshipAccessor as? KFunction<BaseEntity>
 
     }
 }
+
 
 
 fun <R> KFunction<R>.isImplementationMethod(): Boolean =

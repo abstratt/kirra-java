@@ -1,5 +1,6 @@
 package com.abstratt.kirra.spring.user
 
+import com.abstratt.kirra.spring.userprofile.UserProfileService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.userdetails.User

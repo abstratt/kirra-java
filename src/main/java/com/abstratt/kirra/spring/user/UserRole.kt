@@ -26,6 +26,10 @@ abstract class RoleEntity(
     abstract fun getRole() : UserRole
 }
 
+abstract class RoleEntityService<RE : RoleEntity, RR : RoleRepository<RE>>(entityClass : KClass<RE>) : BaseService<RE, RR>(entityClass) {
+    fun findByUser(userProfile : UserProfile) : RE? = repository.findByUser(userProfile)
+}
+
 interface UserRole {
     fun toAuthorityName() : String = "ROLE_${(this as Enum<*>).name}"
     fun toGrantedAuthority() : GrantedAuthority = SimpleGrantedAuthority(toAuthorityName())
@@ -72,36 +76,4 @@ open class RoleService {
 }
 
 
-@Service
-@Transactional(readOnly = true, propagation = Propagation.REQUIRED)
-open class UserProfileService : BaseService<UserProfile, UserProfileRepository>(UserProfile::class) {
-
-    fun findUserByUsername(username: String) = repository.findByUsername(username)
-
-    fun findUserByUsernameAndPassword(username: String, password: String) = repository.findByUsernameAndPassword(username, password)
-
-    @Transactional
-    override fun update(toUpdate: UserProfile): UserProfile? {
-        val existingInstance = repository.findById(toUpdate.id)
-        if (existingInstance.isPresent) {
-            if (toUpdate.readPassword() != null) {
-                existingInstance.get().updatePassword(toUpdate.readPassword()!!)
-                return repository.save(existingInstance.get())
-            }
-        }
-        return existingInstance.get()
-    }
-
-    @Transactional
-    override fun create(toCreate: UserProfile) : UserProfile {
-        BusinessException.ensure(toCreate.readPassword() != null, ErrorCode.INVALID_OR_MISSING_DATA, "password")
-        return super.create(toCreate)
-    }
-}
-
-@Repository
-interface UserProfileRepository : BaseRepository<UserProfile> {
-    fun findByUsername(username: String): UserProfile?
-    fun findByUsernameAndPassword(username: String, password : String): UserProfile?
-}
 

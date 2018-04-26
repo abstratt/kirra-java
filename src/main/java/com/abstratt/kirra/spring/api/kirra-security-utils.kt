@@ -2,6 +2,7 @@ package com.abstratt.kirra.spring.api
 
 import com.abstratt.kirra.spring.user.*
 import com.abstratt.kirra.spring.userprofile.UserProfile
+import com.abstratt.kirra.spring.userprofile.UserProfileService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Profile
 import org.springframework.security.core.context.SecurityContextHolder

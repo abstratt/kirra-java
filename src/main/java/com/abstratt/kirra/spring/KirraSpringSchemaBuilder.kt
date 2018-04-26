@@ -16,6 +16,7 @@ import java.lang.reflect.*
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.util.*
 import javax.persistence.*
 import javax.persistence.metamodel.*
 import javax.persistence.metamodel.Type
@@ -41,27 +42,51 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
 
     override fun build(): Schema {
         val schema = Schema()
-        schema.namespaces = buildNamespaces(kirraSpringMetamodel.entitiesByPackage)
+        val delayedTasks : MutableList<(Map<TypeRef, Entity>) -> Unit> = LinkedList()
+        val namespaces = buildNamespaces(kirraSpringMetamodel.entitiesByPackage, delayedTasks)
+        val allEntities: Map<TypeRef, Entity> = namespaces.map { it.entities }.flatten().associateBy { it.typeRef }
+        delayedTasks.forEach { task -> task(allEntities) }
+        schema.namespaces = namespaces
         schema.applicationName = kirraSpringApplication.name
         schema.applicationLabel = getLabel(schema.applicationName)
         return schema
     }
 
-    fun buildNamespaces(packages: Map<String, List<Class<*>>>): MutableList<Namespace>? {
-        return packages.map { buildNamespace(it.key, it.value) }.toMutableList()
+    fun buildNamespaces(packages: Map<String, List<Class<*>>>, delayedTasks: MutableList<(Map<TypeRef, Entity>) -> Unit>): List<Namespace> {
+        return packages.map { buildNamespace(it.key, it.value, delayedTasks) }
     }
 
-    fun buildNamespace(packageName: String, classes: List<Class<*>>): Namespace {
+    fun buildNamespace(packageName: String, classes: List<Class<*>>, delayedTasks: MutableList<(Map<TypeRef, Entity>) -> Unit>): Namespace {
         val namespace = Namespace(packageNameToNamespace(packageName))
         val namespaceEntityTypes : List<EntityType<*>> = classes.filter{!it.kotlin.isAbstract}.map {
             kirraSpringMetamodel.getJpaEntity(it)!!
         }
-        namespace.entities = buildEntities(namespace.name, namespaceEntityTypes).toMutableList()
+        namespace.entities = buildEntities(namespace.name, namespaceEntityTypes, delayedTasks).toMutableList()
         return namespace
     }
 
-    fun buildEntities(namespaceName: String, entityTypes: Iterable<EntityType<*>>): Iterable<Entity> {
-        return entityTypes.map { buildEntity(namespaceName, it) }
+    fun buildEntities(namespaceName: String, entityTypes: Iterable<EntityType<*>>, delayedTasks: MutableList<(Map<TypeRef, Entity>) -> Unit>): Iterable<Entity> {
+        val entities = entityTypes.map { buildEntity(namespaceName, it) }
+
+        delayedTasks.add({ entitiesByTypeRef -> addInvertedRelationships(entitiesByTypeRef) })
+
+        return entities
+    }
+
+    private fun addInvertedRelationships(entities: Map<TypeRef, Entity>) {
+        val invertedRelationships = entities.map {
+            val serviceClass = kirraSpringMetamodel.getEntityServiceClass<BaseService<*,*>>(it.key)
+            serviceClass.functions.filter {
+                kirraSpringMetamodel.isRelationshipAccessor(it)
+            }
+        }.flatten().map { buildInvertedRelationship(it) }.groupBy { it.owner }
+
+        invertedRelationships.forEach {
+            val entity = entities[it.key]
+            // will be null if other entity not registered by the Kirra app
+            if (entity != null)
+                entity!!.relationships = entity!!.relationships + it.value
+        }
     }
 
     fun buildEntity(namespaceName: String, entityType: EntityType<*>): Entity {
@@ -79,24 +104,19 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
 
         val storedRelationships = this.buildStoredRelationships(entityType)
         val derivedRelationships = entityAsKotlinClass.memberProperties.filter { kirraSpringMetamodel.isEntityClass(it.returnType.javaClass) && it.javaField == null && !(it is KMutableProperty<*>) }.map { buildDerivedRelationship(it) }
-        var invertedRelationships = emptyList<Relationship>()
         val allOperations = this.buildInstanceOperations(entityType).toMutableList()
         try {
             val serviceClass = entityAsJavaClass.classLoader.loadClass(entityAsJavaClass.name + "Service")
             val serviceBean = applicationContext.getBean(entityType.name.decapitalize() + "Service", serviceClass)
             val serviceFunctions = serviceClass.methods.filter {
                 it.kotlinFunction != null && (
-                    kirraSpringMetamodel.isKirraOperation(it.kotlinFunction!!) ||
-                    kirraSpringMetamodel.isRelationshipAccessor(entityAsJavaClass, it.kotlinFunction!!)
+                    kirraSpringMetamodel.isKirraOperation(it.kotlinFunction!!)
                 )
             }.map { it.kotlinFunction!! }
             val serviceOperations = serviceFunctions.filter { kirraSpringMetamodel.isKirraOperation(it) }
             val serviceFunctionsAreInstanceOrEntity = serviceOperations.groupBy {
                 it.valueParameters.firstOrNull()?.type?.classifier == entityAsKotlinClass
             }
-            invertedRelationships = serviceFunctions.filter {
-                kirraSpringMetamodel.isRelationshipAccessor(entityAsJavaClass, it)
-            }.map { buildInvertedRelationship(it) }
 
             val entityOperations = serviceFunctionsAreInstanceOrEntity[false]
                     ?.map { buildOperation(it,false) } ?: emptyList()
@@ -109,7 +129,7 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
             // no service class
             logger.info("No service class for {}", newEntity.typeRef)
         }
-        val allRelationships = storedRelationships + derivedRelationships + invertedRelationships
+        val allRelationships = storedRelationships + derivedRelationships
         newEntity.relationships = allRelationships
         newEntity.operations = allOperations
         newEntity.isConcrete = !entityAsKotlinClass.isAbstract
@@ -150,6 +170,8 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
         val relationshipType = relationshipAccessor.returnType
         relationship.typeRef = getTypeRef(relationshipType)
         val oppositeName = relationshipAccessor.valueParameters[0].name!!
+        // set the owner so inverted relationships can be placed in the entity under which they are supposed to be defined
+        relationship.owner = getTypeRef(relationshipAccessor.valueParameters[0].type)
         relationship.style = accessorAnnotation.style
         relationship.isEditable = relationship.style != Relationship.Style.PARENT
         relationship.isInitializable = relationship.style != Relationship.Style.PARENT
@@ -163,7 +185,7 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
         relationship.isHasDefault = false
         relationship.isInitializable = false
         relationship.isEditable = false
-        relationship.isDerived = true
+        relationship.isDerived = accessorAnnotation.derived
         relationship.isUserVisible = isUserVisible(relationshipAccessor.javaMethod)
         logger.info("Built relationship ${relationship.name} from ${relationshipAccessor}")
         return relationship
