@@ -275,7 +275,7 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
         setName(property, CallableNameProvider(kotlinElement))
         property.typeRef = getTypeRef(KotlinDerivedProperty(kProperty))
         property.isMultiple = kirraSpringMetamodel.isMultiple(kProperty.returnType)
-        property.isHasDefault = true
+        property.isHasDefault = false
         property.isInitializable = false
         property.isEditable = false
         property.isRequired = false

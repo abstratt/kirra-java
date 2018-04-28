@@ -2,20 +2,12 @@ package com.abstratt.kirra.spring
 
 import com.abstratt.kirra.*
 import com.abstratt.kirra.spring.api.SecurityService
-import com.abstratt.kirra.spring.userprofile.UserProfileService
-import com.abstratt.kirra.spring.user.RoleEntity
-import com.abstratt.kirra.spring.user.RoleService
 import org.springframework.aop.support.AopUtils
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.context.ApplicationContext
 import org.springframework.data.domain.PageRequest
 import org.springframework.security.access.annotation.Secured
-import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
-import java.util.TreeSet
-import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
 import kotlin.reflect.KProperty1
@@ -110,21 +102,27 @@ open class KirraSpringInstanceManagement (
             return allEntityCapabilities(entity)
         }
 
+        return getEntityCapabilities(accessControl)
+    }
+
+    private fun getEntityCapabilities(accessControl: AccessControl<*, *>): EntityCapabilities {
         val constraints = accessControl.constraints
 
         val currentUserRoles = securityService.getCurrentUserRoles() ?: emptyList()
-        val roleClasses = currentUserRoles.map { it::class }
 
         val entityConstraints = constraints.filterIsInstance(EntityConstraint::class.java).filter { it.capabilities.any { it.targets.contains(CapabilityTarget.Entity) } }
         val functionConstraints = constraints.filterIsInstance(BehaviorConstraint::class.java)
         val queryConstraints = functionConstraints.filter { kirraSpringMetamodel.getOperationKind(it.operation, false) == Operation.OperationKind.Finder }.groupBy { it.operation }
         val actionConstraints = functionConstraints.filter { kirraSpringMetamodel.getOperationKind(it.operation, false) == Operation.OperationKind.Action }.groupBy { it.operation }
 
-        val entityCapabilities = mapConstraintsToCapabilities(null, currentUserRoles, entityConstraints, roleClasses, listOf(CapabilityTarget.Entity))
-        val queryCapabilities = queryConstraints.map { Pair(it.key.name, mapConstraintsToCapabilities(null, currentUserRoles,it.value + entityConstraints, roleClasses, listOf(CapabilityTarget.StaticOperation))) }.toMap()
-        val staticActionCapabilities = actionConstraints.map { Pair(it.key.name, mapConstraintsToCapabilities(null, currentUserRoles, it.value + entityConstraints, roleClasses, listOf(CapabilityTarget.StaticOperation))) }.toMap()
-        return EntityCapabilities(entityCapabilities, queryCapabilities, staticActionCapabilities)
+        val entityCapabilities = computeCapabilities(null, currentUserRoles, listOf(CapabilityTarget.Entity), ConstraintLayer(entityConstraints))
+        val queryCapabilities = queryConstraints.map { Pair(it.key.name, computeCapabilities(null, currentUserRoles, listOf(CapabilityTarget.StaticOperation), ConstraintLayer(entityConstraints), ConstraintLayer(it.value))) }.toMap()
+        val staticActionCapabilities = actionConstraints.map { Pair(it.key.name, computeCapabilities(null, currentUserRoles, listOf(CapabilityTarget.StaticOperation), ConstraintLayer(entityConstraints), ConstraintLayer(it.value))) }.toMap()
+        return toEntityCapabilities(entityCapabilities, queryCapabilities, staticActionCapabilities)
     }
+
+    private fun toCapabilityNames(capability: List<Capability>) =
+            capability.map { it.name }
 
     private fun allEntityCapabilities(entity: Entity): EntityCapabilities =
             EntityCapabilities(Capability.allCapabilities(CapabilityTarget.Entity).map { it.name },
@@ -143,29 +141,6 @@ open class KirraSpringInstanceManagement (
         return accessControl
     }
 
-    private fun <CON : Constraint<*,*>>  mapConstraintsToCapabilities(instance : BaseEntity?, roles : List<RoleEntity>, constraints: List<CON>, roleClasses: List<KClass<out RoleEntity>>, targets : Iterable<CapabilityTarget>): List<String> {
-        val roleConstraints = constraints.filter {
-            // do any roles match?
-            it.roles.any { expected -> roleClasses.any { actual -> actual.isSubclassOf(expected) }}
-        }
-        val userConstraints : List<CON> = roleConstraints.filter {
-            constraintFilter(instance, roles).invoke(it as Constraint<BaseEntity, RoleEntity>)
-        }
-        val asCapabilities = userConstraints.map {
-            it.capabilities.filter {
-                it.targets.intersect(targets).isNotEmpty()
-            }.map { it.name }
-        }
-        return asCapabilities.flatten().toCollection(TreeSet()).toList()
-    }
-
-    private fun <CON : Constraint<E, RE>, E : BaseEntity, RE : RoleEntity> constraintFilter(instance: E?, roles : List<RE>): (CON) -> Boolean =
-            { it : CON -> it.accessPredicate == null || roles.any { role -> checkPredicate(it, instance, role) }  }
-
-    private fun <CON : Constraint<E, RE>, E : BaseEntity, RE : RoleEntity> checkPredicate(constraint: CON, instance: E?, role: RE): Boolean {
-        val result = constraint.accessPredicate!!(instance, role)
-        return result
-    }
 
     override fun getInstanceCapabilities(typeRef: TypeRef, objectId: String): InstanceCapabilities {
         val entity = schemaManagement.getEntity(typeRef)
@@ -184,10 +159,14 @@ open class KirraSpringInstanceManagement (
             return allInstanceCapabilities(entity)
         }
 
+        return getInstanceCapabilities(accessControl, entity, instance)
+    }
+
+    private fun getInstanceCapabilities(accessControl: AccessControl<*, *>, entity: Entity, instance: BaseEntity?): InstanceCapabilities {
         val constraints = accessControl.constraints
 
         val currentUserRoles = securityService.getCurrentUserRoles() ?: emptyList()
-        val roleClasses = currentUserRoles.map { it::class }
+
 
         val entityConstraints = constraints.filterIsInstance(EntityConstraint::class.java)
         val behaviorConstraints = constraints.filterIsInstance(BehaviorConstraint::class.java)
@@ -196,12 +175,27 @@ open class KirraSpringInstanceManagement (
         val attributeConstraints = dataConstraints.filter { entity.getProperty(it.property.name) != null }.groupBy { it.property }
         val relationshipConstraints = dataConstraints.filter { entity.getRelationship(it.property.name) != null }.groupBy { it.property }
 
-        val instanceCapabilities = mapConstraintsToCapabilities(instance, currentUserRoles, entityConstraints, roleClasses, listOf(CapabilityTarget.Instance))
-        val actionCapabilities = actionConstraints.map { Pair(it.key.name, mapConstraintsToCapabilities(instance, currentUserRoles, it.value + entityConstraints, roleClasses, listOf(CapabilityTarget.Operation))) }.toMap()
-        val attributeCapabilities = attributeConstraints.map { Pair(it.key.name, mapConstraintsToCapabilities(instance, currentUserRoles, it.value + entityConstraints, roleClasses, listOf(CapabilityTarget.Property))) }.toMap()
-        val relationshipCapabilities = relationshipConstraints.map { Pair(it.key.name, mapConstraintsToCapabilities(instance, currentUserRoles, it.value + entityConstraints, roleClasses, listOf(CapabilityTarget.Relationship))) }.toMap()
-        return InstanceCapabilities(instanceCapabilities, attributeCapabilities, relationshipCapabilities, actionCapabilities)
+        val instanceCapabilities = computeCapabilities(instance, currentUserRoles, listOf(CapabilityTarget.Instance), ConstraintLayer(entityConstraints))
+        val actionCapabilities = actionConstraints.map { Pair(it.key.name, computeCapabilities(instance, currentUserRoles, listOf(CapabilityTarget.Operation), ConstraintLayer(entityConstraints), ConstraintLayer(it.value))) }.toMap()
+        val attributeCapabilities = attributeConstraints.map { Pair(it.key.name, computeCapabilities(instance, currentUserRoles, listOf(CapabilityTarget.Property), ConstraintLayer(entityConstraints), ConstraintLayer(it.value))) }.toMap()
+        val relationshipCapabilities = relationshipConstraints.map { Pair(it.key.name, computeCapabilities(instance, currentUserRoles, listOf(CapabilityTarget.Relationship), ConstraintLayer(entityConstraints), ConstraintLayer(it.value))) }.toMap()
+        return toInstanceCapabilities(instanceCapabilities, attributeCapabilities, relationshipCapabilities, actionCapabilities)
     }
+
+    private fun toEntityCapabilities(entityCapabilities: List<Capability>, queryCapabilities: Map<String, List<Capability>>, staticActionCapabilities: Map<String, List<Capability>>): EntityCapabilities =
+        EntityCapabilities(
+                toCapabilityNames(entityCapabilities),
+                queryCapabilities.map { Pair(it.key, toCapabilityNames(it.value)) }.toMap(),
+                staticActionCapabilities.map { Pair(it.key, toCapabilityNames(it.value)) }.toMap()
+        )
+
+    private fun toInstanceCapabilities(instanceCapabilities: List<Capability>, attributeCapabilities: Map<String, List<Capability>>, relationshipCapabilities: Map<String, List<Capability>>, actionCapabilities: Map<String, List<Capability>>): InstanceCapabilities =
+            InstanceCapabilities(
+                    toCapabilityNames(instanceCapabilities),
+                    attributeCapabilities.map { Pair(it.key, toCapabilityNames(it.value)) }.toMap(),
+                    relationshipCapabilities.map { Pair(it.key, toCapabilityNames(it.value)) }.toMap(),
+                    actionCapabilities.map { Pair(it.key, toCapabilityNames(it.value)) }.toMap()
+            )
 
     @Transactional(readOnly = true, propagation = Propagation.REQUIRED)
     override fun getCurrentUser(): Instance? =
@@ -216,9 +210,8 @@ open class KirraSpringInstanceManagement (
             kirraSpringInstanceBridge.toInstance(toConvert, InstanceManagement.DataProfile.Empty)
         }
 
-    override fun filterInstances(criteria : MutableMap<String, MutableList<Any>>?, namespace : String, name : String, profile : InstanceManagement.DataProfile?): MutableList<Instance> {
-        return getInstances(namespace, name, profile);
-    }
+    override fun filterInstances(criteria : MutableMap<String, MutableList<Any>>?, namespace : String, name : String, profile : InstanceManagement.DataProfile?): MutableList<Instance> =
+        getInstances(namespace, name, profile)
 
     @Transactional(readOnly = true, propagation = Propagation.REQUIRED)
     override fun getInstances(namespace: String, entityName: String, dataProfile: InstanceManagement.DataProfile?): MutableList<Instance> {
@@ -381,3 +374,5 @@ class BoundFunction<R>(val instance : Any, val baseFunction : KFunction<R>) : KF
     override val parameters: List<KParameter>
         get() = listOf(baseFunction.instanceParameter!!) + baseFunction.parameters
 }
+
+

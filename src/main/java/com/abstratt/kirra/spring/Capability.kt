@@ -11,22 +11,23 @@ enum class CapabilityTarget() {
     Property, Relationship, StaticOperation, Operation, Entity, Instance
 }
 
-enum class Capability(val instance: Boolean, vararg val targets : CapabilityTarget) {
-    Create(false, CapabilityTarget.Entity),
-    Delete(true, CapabilityTarget.Instance),
-    List(false, CapabilityTarget.Entity),
-    Read(true, CapabilityTarget.Instance, CapabilityTarget.Property, CapabilityTarget.Relationship),
-    Update(true, CapabilityTarget.Instance, CapabilityTarget.Property, CapabilityTarget.Relationship),
-    StaticCall(false, CapabilityTarget.StaticOperation),
-    Call(true, CapabilityTarget.Operation);
+enum class Capability(vararg val targets : CapabilityTarget) {
+    Create(CapabilityTarget.Entity),
+    Delete(CapabilityTarget.Instance),
+    List(CapabilityTarget.Entity),
+    Read(CapabilityTarget.Instance, CapabilityTarget.Property, CapabilityTarget.Relationship),
+    Update(CapabilityTarget.Instance, CapabilityTarget.Property, CapabilityTarget.Relationship),
+    StaticCall(CapabilityTarget.StaticOperation),
+    Call(CapabilityTarget.Operation),
+    None(*CapabilityTarget.values());
 
     companion object {
         fun allCapabilities(vararg filterBy: CapabilityTarget): Iterable<Capability> =
-                values().filter { it.targets.intersect(filterBy.asIterable()).isNotEmpty() }
+                ALL_CAPABILITIES.filter { it.targets.intersect(filterBy.asIterable()).isNotEmpty() }
     }
 }
 
-val ALL_CAPABILITIES : Array<Capability> = EnumSet.allOf(Capability::class.java).toTypedArray()
+val ALL_CAPABILITIES : Array<Capability> = EnumSet.allOf(Capability::class.java).filter { it != Capability.None }.toTypedArray()
 
 interface AccessConstraints {
     fun allow(vararg rule : Pair<KProperty<*>, (RoleEntity) -> Boolean>) : Map<KProperty<*>, (RoleEntity) -> Boolean> =
