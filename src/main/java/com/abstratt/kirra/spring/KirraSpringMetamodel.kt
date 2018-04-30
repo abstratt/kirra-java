@@ -1,10 +1,12 @@
 package com.abstratt.kirra.spring
 
 import com.abstratt.kirra.Operation
+import com.abstratt.kirra.Relationship
 import com.abstratt.kirra.TypeRef
 import org.reflections.Reflections
 import org.reflections.util.ConfigurationBuilder
 import org.springframework.aop.support.AopUtils
+import org.springframework.beans.factory.BeanCreationException
 import org.springframework.beans.factory.NoSuchBeanDefinitionException
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ApplicationContext
@@ -22,7 +24,6 @@ import javax.persistence.metamodel.SingularAttribute
 import kotlin.reflect.*
 import kotlin.reflect.full.*
 import kotlin.reflect.jvm.*
-
 @Component
 class KirraSpringMetamodel {
 
@@ -34,14 +35,19 @@ class KirraSpringMetamodel {
 
     fun <BS : BaseService<*, *>> getEntityServiceClass(typeRef: TypeRef) : KClass<BS> =
         try {
-            val customServiceClass = AopUtils.getTargetClass(getEntityService(typeRef)).kotlin as KClass<BS>
-            customServiceClass
-        } catch (e : NoSuchBeanDefinitionException) {
+            Class.forName(getEntityClass(typeRef)!!.name + "Service").kotlin as KClass<BS>
+        } catch (e : ClassNotFoundException) {
             GenericService::class as KClass<BS>
         }
 
-    fun getEntityService(typeRef: TypeRef) =
-            applicationContext.getBean(typeRef.typeName.decapitalize() + "Service", BaseService::class.java) as BaseService<BaseEntity, *>
+    fun getEntityService(typeRef: TypeRef) : BaseService<BaseEntity, *>? {
+        val serviceName = typeRef.typeName.decapitalize() + "Service"
+        try {
+            return applicationContext.getBean(serviceName, BaseService::class.java) as BaseService<BaseEntity, *>
+        } catch (e : NoSuchBeanDefinitionException) {
+            return null
+        }
+    }
 
     private val reflections by lazy {
         val entityPackageNames = kirraSpringApplication.javaPackages
@@ -182,15 +188,40 @@ class KirraSpringMetamodel {
         return result
     }
 
-    fun getRelationshipAccessor(entityService: BaseService<BaseEntity, *>, entityClass: Class<BaseEntity>, relationshipName: String): KFunction<BaseEntity>? {
+    fun getRelationshipAccessor(relationship : Relationship): KCallable<BaseEntity>? {
+        val entityService = getEntityService(relationship.owner)
+        if (entityService != null) {
+            val relationshipAccessor = getRelationshipAccessorInService(entityService, relationship)
+            if (relationshipAccessor != null)
+                return relationshipAccessor as KFunction<BaseEntity>
+        }
+        val relatedEntityService = getEntityService(relationship.typeRef)
+        if (relatedEntityService != null) {
+            val relationshipAccessor = getRelationshipAccessorInService(relatedEntityService, relationship)
+            if (relationshipAccessor != null)
+                return BoundFunction<BaseEntity>(relatedEntityService, relationshipAccessor)
+        }
+        return null
+    }
+
+    private fun getRelationshipAccessorInService(entityService: BaseService<BaseEntity, *>?, relationship: Relationship): KFunction<BaseEntity>? {
         val memberFunctions = AopUtils.getTargetClass(entityService).kotlin.memberFunctions
-        val relationshipAccessor= memberFunctions.firstOrNull {
-            isRelationshipAccessor(it)
+        val relationshipAccessor = memberFunctions.firstOrNull {
+            it.name == relationship.name && isRelationshipAccessor(it)
         }
         return relationshipAccessor as? KFunction<BaseEntity>
+    }
+
+    fun getRelationshipAccessors(entityService: BaseService<BaseEntity, *>): List<KFunction<BaseEntity>> {
+        val memberFunctions = AopUtils.getTargetClass(entityService).kotlin.memberFunctions
+        val relationshipAccessors= memberFunctions.filter {
+            isRelationshipAccessor(it)
+        }
+        return relationshipAccessors as List<KFunction<BaseEntity>>
 
     }
 }
+
 
 
 

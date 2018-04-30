@@ -18,13 +18,6 @@ import kotlin.reflect.full.findAnnotation
 
 
 open class SchemaTests : TestBase() {
-
-    @Autowired
-    private lateinit var schema: Schema
-
-    @Autowired
-    private lateinit var kirraSpringMetamodel : KirraSpringMetamodel
-
     /**
      * Ensures we can find constraint classes in the classpath.
      */

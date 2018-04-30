@@ -15,49 +15,6 @@ import javax.persistence.PersistenceContext
 import javax.transaction.TransactionScoped
 
 open class AccessControlTests : TestBase() {
-    @Autowired
-    private lateinit var schema: Schema
-
-    @Autowired
-    private lateinit var kirraSpringMetamodel: KirraSpringMetamodel
-    @Autowired
-    private lateinit var kirraSpringBridge: KirraSpringInstanceBridge
-
-    @Autowired
-    private lateinit var instanceManagement: KirraSpringInstanceManagement
-
-    @Autowired
-    private lateinit var securityService: TestSecurityService
-
-    @Autowired
-    private lateinit var userProfileService: BaseService<UserProfile,*>
-    @Autowired()
-    private lateinit var customerService: BaseService<Customer,*>
-    @Autowired
-    private lateinit var employeeService: BaseService<Employee,*>
-    private var user1: UserProfile? = null
-    private var user2: UserProfile? = null
-    private var user3: UserProfile? = null
-    private var user4: UserProfile? = null
-    private var customer1: Customer? = null
-    private var customer2: Customer? = null
-    private var employee1: Employee? = null
-    private var employee2: Employee? = null
-
-    @Before
-    @Rollback(false)
-    @Transactional()
-    fun setUp(): Unit {
-        user1 = userProfileService.create(UserProfile(username = "user1", password = ""))
-        user2 = userProfileService.create(UserProfile(username = "user2", password = ""))
-        user3 = userProfileService.create(UserProfile(username = "user3", password = ""))
-        user4 = userProfileService.create(UserProfile(username = "user4", password = ""))
-        customer1 = customerService.create(Customer(name = "John", user = user1))
-        customer2 = customerService.create(Customer(name = "Mary", user = user2))
-        employee1 = employeeService.create(Employee(name = "Peter", user = user3))
-        employee2 = employeeService.create(Employee(name = "Sheila", user = user4))
-    }
-
     @Test
     fun currentUser_employee(): Unit {
         securityService.selectedUsername = employee1!!.user!!.username

@@ -4,19 +4,27 @@ import com.abstratt.kirra.spring.user.RoleEntity
 import java.util.LinkedHashMap
 import kotlin.reflect.KClass
 
+
+data class ConstraintLayer(val constraints: List<Constraint<*, *>>) {
+    constructor(vararg constraint: Constraint<*, *>) : this(constraint.toList())
+}
+
 data class ConstraintGrant(val constraint: Constraint<*, *>, val granted: Boolean)
+
 data class CapabilityGrant(val capability: Capability, val constraintGrant: ConstraintGrant)
+
 data class RoleGrant(val roleClass: KClass<out RoleEntity>, val capabilityGrants: MutableCollection<CapabilityGrant>) {
     constructor(roleClass: KClass<out RoleEntity>, capabilityGrants: Iterable<CapabilityGrant>) : this(roleClass, capabilityGrants.toMutableList())
 
     fun add(another: RoleGrant) =
-            this.apply { capabilityGrants.addAll(another.capabilityGrants) }
+        apply { capabilityGrants.addAll(another.capabilityGrants) }
 }
 
 data class GrantLayer(val roleGrants : MutableMap<KClass<out RoleEntity>, RoleGrant>) {
     fun merge(next: GrantLayer): GrantLayer =
-        this.apply { roleGrants.putAll(next.roleGrants) }
+        apply { roleGrants.putAll(next.roleGrants) }
 }
+
 
 /**
  * Computes the capabilities for a user with the given roles.
@@ -38,10 +46,9 @@ data class GrantLayer(val roleGrants : MutableMap<KClass<out RoleEntity>, RoleGr
  *
  * @param instance an optional context instance
  * @param roles current user roles
- * @param constraintLayers layered constraintLayers to evaluate (outer to inner)
  * @param targets the capability targets to consider
+ * @param constraintLayers layered constraintLayers to evaluate (outer to inner)
  */
-
 fun computeCapabilities(
         instance: BaseEntity?,
         roles: List<RoleEntity>,
@@ -61,7 +68,7 @@ fun computeCapabilities(
         collected.merge(next)
     }.roleGrants.values
 
-    val capabilities = roleGrants
+    val matchingGrants = roleGrants
             .map { it.capabilityGrants }
             .flatten()
             .filter {
@@ -69,11 +76,11 @@ fun computeCapabilities(
                         && constraintFilter(instance, roles).invoke(
                         it.constraintGrant.constraint as Constraint<BaseEntity, RoleEntity>
                 )
-            }.map { it.capability }
+            }
+
+    return matchingGrants.map { it.capability }
             .toSortedSet()
             .toList()
-
-    return capabilities
 }
 
 /**
@@ -123,17 +130,12 @@ fun computeCapabilities(
         vararg constraints: ConstraintLayer
 ): List<Capability> = computeCapabilities(instance, roles, targets, constraints.toList())
 
-class ConstraintLayer(val constraints: List<Constraint<*, *>>) {
-    constructor(vararg constraint: Constraint<*, *>) : this(constraint.toList())
-}
 
 fun <CON : Constraint<E, RE>, E : BaseEntity, RE : RoleEntity> constraintFilter(instance: E?, roles: List<RE>): (CON) -> Boolean =
-        { it: CON ->
-            it.accessPredicate == null || roles.any { role -> checkPredicate(it, instance, role) }
-        }
+    { it: CON ->
+        it.accessPredicate == null || roles.any { role -> checkPredicate(it, instance, role) }
+    }
 
-fun <CON : Constraint<E, RE>, E : BaseEntity, RE : RoleEntity> checkPredicate(constraint: CON, instance: E?, role: RE): Boolean {
-    val result = constraint.accessPredicate!!(instance, role)
-    return result
-}
+fun <CON : Constraint<E, RE>, E : BaseEntity, RE : RoleEntity> checkPredicate(constraint: CON, instance: E?, role: RE): Boolean =
+    constraint.accessPredicate!!(instance, role)
 

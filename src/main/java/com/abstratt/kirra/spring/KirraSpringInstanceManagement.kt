@@ -62,7 +62,7 @@ open class KirraSpringInstanceManagement (
     }
 
     private fun getEntityService(typeRef: TypeRef) =
-            kirraSpringMetamodel.getEntityService(typeRef)
+            kirraSpringMetamodel.getEntityService(typeRef)!!
 
     @Transactional(readOnly = false, propagation = Propagation.REQUIRED)
     override fun linkInstances(relationship: Relationship?, sourceId: String?, destinationId: InstanceRef?) {
@@ -201,7 +201,7 @@ open class KirraSpringInstanceManagement (
     override fun getCurrentUser(): Instance? =
             securityService.getCurrentUser()?.let {
                 val toConvert = it
-                kirraSpringInstanceBridge.toInstance(toConvert, InstanceManagement.DataProfile.Full)
+                kirraSpringInstanceBridge.toInstance(toConvert, InstanceManagement.DataProfile.Slim)
             }
 
     override fun getCurrentUserRoles(): List<Instance> =
@@ -332,6 +332,7 @@ open class KirraSpringInstanceManagement (
     @Transactional(readOnly = true, propagation = Propagation.REQUIRED)
     override fun getRelatedInstances(namespace: String, entityName: String, externalId: String, relationshipName: String, dataProfile: InstanceManagement.DataProfile?): MutableList<Instance> {
         val entityRef = TypeRef(namespace, entityName, TypeRef.TypeKind.Entity)
+        val entity = schemaManagement.getEntity(entityRef)
         val entityClass = kirraSpringMetamodel.getEntityClass(entityRef)
         val found = retrieveJavaInstance(namespace, entityName, externalId)
         KirraException.ensure(found != null, KirraException.Kind.OBJECT_NOT_FOUND, {null})
@@ -341,7 +342,7 @@ open class KirraSpringInstanceManagement (
         if (relationshipKProperty != null) {
             relatedObjects = entityService.getRelated(externalId.toLong(), relationshipKProperty as KProperty1<BaseEntity, BaseEntity>)
         } else {
-            val relationshipAccessor = kirraSpringMetamodel.getRelationshipAccessor(entityService, entityClass!!, relationshipName)
+            val relationshipAccessor = kirraSpringMetamodel.getRelationshipAccessor(entity.getRelationship(relationshipName))
             KirraException.ensure(relationshipAccessor != null, KirraException.Kind.ELEMENT_NOT_FOUND, null)
             relatedObjects = relationshipAccessor!!.call(entityService, found) as? Iterable<BaseEntity>
         }
@@ -373,6 +374,9 @@ class BoundFunction<R>(val instance : Any, val baseFunction : KFunction<R>) : KF
 
     override val parameters: List<KParameter>
         get() = listOf(baseFunction.instanceParameter!!) + baseFunction.parameters
+
+    override val name: String
+        get() = baseFunction.name
 }
 
 

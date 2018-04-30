@@ -122,7 +122,7 @@ class Employee(id : Long? = null, name : String? = null, user : UserProfile? = n
 @Service
 open class EmployeeService : RoleEntityService<Employee, EmployeeRepository>(Employee::class) {
     @RelationshipAccessor
-    open fun roleAsEmployee(profile : UserProfile) = repository.findByUser(profile)
+    open fun roleAsEmployee(profile : UserProfile) = findByUser(profile)
 }
 
 @Entity

@@ -1,10 +1,10 @@
 package com.abstratt.kirra.spring
 
 import com.abstratt.kirra.*
-import com.abstratt.kirra.statemachine.StateMachineInstance
 import com.abstratt.kirra.statemachine.StateToken
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
+import kotlin.reflect.KCallable
 import kotlin.reflect.KMutableProperty
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.memberProperties
@@ -31,6 +31,7 @@ class KirraSpringInstanceBridge {
     fun <E : BaseEntity> toInstance(toConvert : E, dataProfile : InstanceManagement.DataProfile = InstanceManagement.DataProfile.Slim) : Instance {
         // convert Java class instance to Kirra instance
         val entityTypeRef = getTypeRef(toConvert::class.java)
+        val entityService = kirraSpringMetamodel.getEntityService(entityTypeRef)
         val kirraEntity = schemaManagement.getEntity(entityTypeRef)
         val properties = toConvert::class.memberProperties
         val instance =  Instance(getTypeRef(toConvert.javaClass), toConvert.id?.let { it.toString() })
@@ -42,16 +43,28 @@ class KirraSpringInstanceBridge {
                     collectRelationshipValue(ktProperty, kirraEntity, toConvert, { value -> instance.setSingleRelated(ktProperty.name, toInstance(value, InstanceManagement.DataProfile.Slim))})
                 }
             }
+            if (dataProfile == InstanceManagement.DataProfile.Full) {
+                val relationships = kirraEntity.relationships
+                        .filter { !it.isMultiple }
+                        .associate { Pair(it, kirraSpringMetamodel.getRelationshipAccessor(it)) }
+                        .filter { it.value != null } as Map<Relationship, KCallable<*>>
+
+                relationships.forEach { relationship, accessor ->
+                    collectRelationshipValue(accessor, kirraEntity, toConvert, { value ->
+                        instance.setSingleRelated(accessor.name, toInstance(value, InstanceManagement.DataProfile.Slim))
+                    })
+                }
+            }
         }
         kirraEntity.mnemonicSlot
         instance.shorthand = extractShorthand(toConvert, kirraEntity)
         return instance
     }
 
-    private fun <E> collectRelationshipValue(ktProperty: KProperty1<out E, Any?>, kirraEntity: Entity, toConvert: E, collector: (BaseEntity) -> Unit): Boolean {
-        val kirraRelationship = kirraEntity.getRelationship(ktProperty.name)
+    private fun <E> collectRelationshipValue(callable: KCallable<out E>, kirraEntity: Entity, toConvert: E, collector: (BaseEntity) -> Unit): Boolean {
+        val kirraRelationship = kirraEntity.getRelationship(callable.name)
         if (kirraRelationship != null && !kirraRelationship.isMultiple) {
-            val link = ktProperty.call(toConvert) as BaseEntity?
+            val link = callable.call(toConvert) as BaseEntity?
             if (link != null)
                 collector.invoke(link)
             return true
@@ -74,11 +87,9 @@ class KirraSpringInstanceBridge {
     fun extractShorthand(javaInstance : BaseEntity, kirraEntity : Entity) : String {
         var shorthand : String? = null
         val ktProperty = javaInstance::class.memberProperties.firstOrNull { it.name == kirraEntity.mnemonicSlot } ?: javaInstance::class.memberProperties.first()
-        if (ktProperty != null) {
-            val propertyRead = collectPropertyValue(ktProperty, kirraEntity, javaInstance, { value -> shorthand = value?.toString() })
-            if (!propertyRead) {
-                collectRelationshipValue(ktProperty, kirraEntity, javaInstance, { value -> shorthand = toInstance(value, InstanceManagement.DataProfile.Slim)?.shorthand })
-            }
+        val propertyRead = collectPropertyValue(ktProperty, kirraEntity, javaInstance, { value -> shorthand = value?.toString() })
+        if (!propertyRead) {
+            collectRelationshipValue(ktProperty, kirraEntity, javaInstance, { value -> shorthand = toInstance(value, InstanceManagement.DataProfile.Slim)?.shorthand })
         }
         return shorthand ?: javaInstance::class.simpleName + "@"  + javaInstance.id
     }
