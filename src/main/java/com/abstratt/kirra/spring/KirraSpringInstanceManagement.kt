@@ -310,7 +310,7 @@ open class KirraSpringInstanceManagement (
         }
         val callResult = boundMethod.invoke(javaInstance, *(kotlinMatchedArguments.map { it.second }.toTypedArray()))
 
-        val asList = if (callResult == null || callResult is Unit)
+        val asList : MutableList<*> = if (callResult == null || callResult is Unit)
             emptyList<Any>().toMutableList()
         else if (callResult is Iterable<*>)
             callResult.toMutableList()
