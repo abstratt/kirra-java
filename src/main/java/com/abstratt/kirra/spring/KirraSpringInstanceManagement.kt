@@ -8,6 +8,8 @@ import org.springframework.security.access.annotation.Secured
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
+import java.lang.reflect.Method
+import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
 import kotlin.reflect.KProperty1
@@ -257,47 +259,57 @@ open class KirraSpringInstanceManagement (
 
         val entityInstance = externalId?.let { service.findById(it.toLong()) }
 
+        val matchedModelArguments = matchArguments(arguments, operation)
+        val matchedArguments = matchedModelArguments + customImplArguments
+
         // it will be null if the service does not have a function matching the Kirra operation name
-        val serviceImplementationFunction = AopUtils.getTargetClass(service).kotlin.functions.find { it.name == operation.name && kirraSpringMetamodel.isKirraOperation(it) }
-        val serviceFunction = serviceImplementationFunction?.let { impl ->
-            service::class.functions.find {
-                it.name == operation.name && it.javaMethod!!.parameterTypes.toList() == impl.javaMethod!!.parameterTypes.toList()
+        val serviceImplClass = AopUtils.getTargetClass(service)
+
+        val serviceImplementationMethod = findMatchingMethod(serviceImplClass.kotlin, operation.name, matchedArguments)
+        // we need the proxy function though
+        val serviceMethod = serviceImplementationMethod?.let { impl ->
+            service::class.java.methods.find {
+                // same name and parameter types
+                it.name == operation.name && it.parameterTypes.toList() == impl!!.parameterTypes.toList()
             }
         }
 
-        val entityFunction = entityClass.kotlin.functions.find { it.name == operation.name && kirraSpringMetamodel.isKirraOperation(it) }
+        val entityMethod = findMatchingMethod(entityClass.kotlin, operation.name, matchedModelArguments)
 
-        val (javaInstance, actualFunction, functionParameterNames) = if (serviceFunction != null) Triple(service, serviceFunction!!, serviceImplementationFunction.valueParameters.map { it.name }) else Triple(entityInstance, entityFunction!!, entityFunction.valueParameters.map { it.name })
+        KirraException.ensure(entityMethod != null || serviceImplementationMethod != null, KirraException.Kind.ELEMENT_NOT_FOUND, { "No operation named ${operation.name}" })
+
+        val (javaInstance, actualMethod, functionParameterNames) = if (serviceMethod != null) Triple(service, serviceMethod!!, serviceImplementationMethod.parameters.map { it.name }) else Triple(entityInstance, entityMethod!!, entityMethod.parameters.map { it.name })
         BusinessException.ensure(javaInstance != null, ErrorCode.UNKNOWN_OBJECT)
 
-        val boundFunction = BoundFunction(javaInstance!!, actualFunction)
-        val matchedModelArguments = arguments!!.mapIndexed { i, argument -> Pair(operation.parameters[i].name, kirraSpringInstanceBridge.mapKirraValueToJava(operation.parameters[i], argument)) }.toMap()
-        val matchedArguments = matchedModelArguments + customImplArguments
-        val offset = if (operation.isInstanceOperation && serviceFunction != null) 1 else 0
+        val boundMethod = actualMethod
+
+        val offset = if (operation.isInstanceOperation && serviceMethod != null) 1 else 0
+        var actualParameterIndex = -1
         val kotlinMatchedModelArguments = matchedModelArguments.map { namedValue ->
             val index = operation.parameters.indexOfFirst { it.name == namedValue.key }
             KirraException.ensure(index >= 0, KirraException.Kind.ELEMENT_NOT_FOUND, { "Missing parameter: ${namedValue.key}" })
             val kirraParameter = operation.parameters[index]
-            val ktParameter = boundFunction.valueParameters[offset + index]
+            val ktParameter = boundMethod.parameters[offset + ++actualParameterIndex]
             val ktValue = namedValue.value
             Pair(ktParameter!!, ktValue)
-        }.toMap().toMutableMap()
-
-        val kotlinMatchedImplArguments = customImplArguments.map { namedImplArgument ->
-            val index = functionParameterNames.indexOf(namedImplArgument.key)
-            Pair(boundFunction.valueParameters[index], namedImplArgument.value)
-        }.filterNotNull()
-
-        val kotlinMatchedArguments = (kotlinMatchedModelArguments + kotlinMatchedImplArguments).toMutableMap()
-
-        if (serviceFunction != null) {
-            val serviceParameter = serviceFunction.valueParameters[0]
-            // a service may implement an instance operation - in that case, the entity instance is the first parameter
-            if (operation.isInstanceOperation)
-                kotlinMatchedArguments[serviceParameter] = entityInstance
         }
 
-        val callResult = boundFunction.callBy(kotlinMatchedArguments)
+        val kotlinMatchedImplArguments = customImplArguments.map { namedImplArgument ->
+            Pair(boundMethod.parameters[++actualParameterIndex], namedImplArgument.value)
+        }.filterNotNull()
+
+        val kotlinMatchedArguments = (kotlinMatchedModelArguments + kotlinMatchedImplArguments).toMutableList()
+
+        if (serviceMethod != null) {
+            // a service may implement an instance operation - in that case, the entity instance is the first parameter
+            if (operation.isInstanceOperation) {
+                // first parameter holds the target instance, by convention
+                val serviceParameter = serviceMethod.parameters[0]
+                kotlinMatchedArguments.add(0, Pair(serviceParameter, entityInstance))
+            }
+        }
+        val callResult = boundMethod.invoke(javaInstance, *(kotlinMatchedArguments.map { it.second }.toTypedArray()))
+
         val asList = if (callResult == null || callResult is Unit)
             emptyList<Any>().toMutableList()
         else if (callResult is Iterable<*>)
@@ -310,6 +322,42 @@ open class KirraSpringInstanceManagement (
         } else it }.toMutableList()
 
         return Triple(service, javaInstance, result)
+    }
+
+    private fun findMatchingMethod(kClass: KClass<out Any>, operationName: String?, matchedArguments: Map<String, Any?>): Method? {
+        val matchingName = kClass.java.methods.filter { it.name == operationName }
+        return matchingName.find { canInvokeWith(it, matchedArguments) }
+    }
+
+    /**
+     * Can invoke a function if all required parameters have matching arguments, and
+     * all arguments are expected (by name and type).
+     */
+    private fun canInvokeWith(toCall: Method, matchedArguments: Map<String, Any?>): Boolean {
+        val requiredParameters = toCall.parameters
+        if (matchedArguments.size != requiredParameters.size) {
+            return false
+        }
+        matchedArguments.toList().forEachIndexed { index, argument ->
+            if (!requiredParameters[index].type.kotlin.isInstance(argument.second)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    private fun matchArguments(arguments: MutableList<*>?, operation: Operation): Map<String, Any?> {
+        return arguments!!
+                .mapIndexed { i, argument ->
+                    Pair(
+                            operation.parameters[i].name,
+                            kirraSpringInstanceBridge
+                                    .mapKirraValueToJava(
+                                            operation.parameters[i],
+                                            argument
+                                    )
+                    )
+                }.filter { it.second != null }.toMap()
     }
 
     override fun getParameterDomain(entity: Entity, externalId: String, action: Operation, parameter: Parameter): MutableList<Instance> {
@@ -377,6 +425,7 @@ class BoundFunction<R>(val instance : Any, val baseFunction : KFunction<R>) : KF
 
     override val name: String
         get() = baseFunction.name
+
 }
 
 

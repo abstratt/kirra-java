@@ -6,16 +6,13 @@ import com.abstratt.kirra.TypeRef
 import org.reflections.Reflections
 import org.reflections.util.ConfigurationBuilder
 import org.springframework.aop.support.AopUtils
-import org.springframework.beans.factory.BeanCreationException
 import org.springframework.beans.factory.NoSuchBeanDefinitionException
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.context.ApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
 import java.lang.reflect.AccessibleObject
 import java.lang.reflect.Member
-import javax.management.relation.Relation
 import javax.persistence.EntityManagerFactory
 import javax.persistence.metamodel.Attribute
 import javax.persistence.metamodel.EntityType
@@ -24,6 +21,7 @@ import javax.persistence.metamodel.SingularAttribute
 import kotlin.reflect.*
 import kotlin.reflect.full.*
 import kotlin.reflect.jvm.*
+
 @Component
 class KirraSpringMetamodel {
 
