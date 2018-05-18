@@ -65,14 +65,14 @@ open class AccessControlTests : TestBase() {
         val capabilities = instanceManagement.getEntityCapabilities(customerTypeRef)
         Assert.assertEquals(sortedSetOf("Create", "List"), capabilities.entity.toSortedSet())
 
-        Assert.assertEquals(sortedSetOf("StaticCall"), capabilities.queries["allCustomers"]!!.toSortedSet())
+        Assert.assertEquals(sortedSetOf("Call"), capabilities.queries["allCustomers"]!!.toSortedSet())
 
         securityService.selectedUsername = customer1!!.user!!.username
 
         val capabilities2 = instanceManagement.getEntityCapabilities(customerTypeRef)
         Assert.assertEquals(sortedSetOf("List"), capabilities2.entity.toSortedSet())
 
-        Assert.assertEquals(sortedSetOf("StaticCall"), capabilities.queries["allCustomers"]!!.toSortedSet())
+        Assert.assertEquals(sortedSetOf("Call"), capabilities.queries["allCustomers"]!!.toSortedSet())
     }
 
     @Test

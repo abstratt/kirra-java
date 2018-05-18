@@ -149,7 +149,7 @@ class Customer(id : Long? = null, name : String? = null, user : UserProfile? = n
             constraint(
                     CustomerService::allCustomers,
                     roles(Employee::class),
-                    can(Capability.StaticCall)
+                    can(Capability.Call)
             )
     )
 }

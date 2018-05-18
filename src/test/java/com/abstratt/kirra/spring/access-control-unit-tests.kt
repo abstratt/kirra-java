@@ -63,11 +63,11 @@ class AccessControlUT {
     fun operation() {
         var capabilities = computeCapabilities(null,
                 listOf(Employee()),
-                listOf(CapabilityTarget.StaticOperation),
+                listOf(CapabilityTarget.Operation),
                 ConstraintLayer(constraint<Order, Employee>(roles(Employee::class), can(Capability.Create))),
-                ConstraintLayer(constraint<Order, Employee>(roles(Employee::class), can(Capability.StaticCall)))
+                ConstraintLayer(constraint<Order, Employee>(roles(Employee::class), can(Capability.Call)))
         ).toSet()
-        Assert.assertEquals(setOf(Capability.StaticCall), capabilities)
+        Assert.assertEquals(setOf(Capability.Call), capabilities)
     }
 
 
@@ -75,8 +75,8 @@ class AccessControlUT {
     fun operation_removed() {
         var capabilities = computeCapabilities(null,
                 listOf(Employee()),
-                listOf(CapabilityTarget.StaticOperation),
-                ConstraintLayer(constraint<Order, Employee>(roles(Employee::class), can(Capability.StaticCall))),
+                listOf(CapabilityTarget.Operation),
+                ConstraintLayer(constraint<Order, Employee>(roles(Employee::class), can(Capability.Call))),
                 ConstraintLayer(constraint<Order, Employee>(roles(Employee::class), can(Capability.None)))
         ).toSet()
         Assert.assertEquals(emptySet<Capability>(), capabilities)
@@ -111,9 +111,9 @@ class AccessControlUT {
     fun operation_all() {
         var capabilities = computeCapabilities(null,
                 listOf(Employee()),
-                listOf(CapabilityTarget.StaticOperation),
+                listOf(CapabilityTarget.Operation),
                 ConstraintLayer(constraint<Order, Employee>(roles(Employee::class), can(*ALL_CAPABILITIES)))
         ).toSet()
-        Assert.assertEquals(setOf(Capability.StaticCall), capabilities)
+        Assert.assertEquals(setOf(Capability.Call), capabilities)
     }
 }

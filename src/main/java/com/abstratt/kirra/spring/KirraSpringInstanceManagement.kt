@@ -118,8 +118,8 @@ open class KirraSpringInstanceManagement (
         val actionConstraints = functionConstraints.filter { kirraSpringMetamodel.getOperationKind(it.operation, false) == Operation.OperationKind.Action }.groupBy { it.operation }
 
         val entityCapabilities = computeCapabilities(null, currentUserRoles, listOf(CapabilityTarget.Entity), ConstraintLayer(entityConstraints))
-        val queryCapabilities = queryConstraints.map { Pair(it.key.name, computeCapabilities(null, currentUserRoles, listOf(CapabilityTarget.StaticOperation), ConstraintLayer(entityConstraints), ConstraintLayer(it.value))) }.toMap()
-        val staticActionCapabilities = actionConstraints.map { Pair(it.key.name, computeCapabilities(null, currentUserRoles, listOf(CapabilityTarget.StaticOperation), ConstraintLayer(entityConstraints), ConstraintLayer(it.value))) }.toMap()
+        val queryCapabilities = queryConstraints.map { Pair(it.key.name, computeCapabilities(null, currentUserRoles, listOf(CapabilityTarget.Operation), ConstraintLayer(entityConstraints), ConstraintLayer(it.value))) }.toMap()
+        val staticActionCapabilities = actionConstraints.map { Pair(it.key.name, computeCapabilities(null, currentUserRoles, listOf(CapabilityTarget.Operation), ConstraintLayer(entityConstraints), ConstraintLayer(it.value))) }.toMap()
         return toEntityCapabilities(entityCapabilities, queryCapabilities, staticActionCapabilities)
     }
 
@@ -128,14 +128,14 @@ open class KirraSpringInstanceManagement (
 
     private fun allEntityCapabilities(entity: Entity): EntityCapabilities =
             EntityCapabilities(Capability.allCapabilities(CapabilityTarget.Entity).map { it.name },
-                    entity.operations.filter { it.kind == Operation.OperationKind.Finder && !it.isInstanceOperation}.map { Pair(it.name, Capability.allCapabilities(CapabilityTarget.StaticOperation).map { it.name }) }.toMap(),
-                    entity.operations.filter { it.kind == Operation.OperationKind.Action && !it.isInstanceOperation}.map { Pair(it.name, Capability.allCapabilities(CapabilityTarget.StaticOperation).map { it.name }) }.toMap())
+                    entity.operations.filter { it.kind == Operation.OperationKind.Finder && !it.isInstanceOperation}.map { Pair(it.name, Capability.allCapabilities(CapabilityTarget.Operation).map { it.name }) }.toMap(),
+                    entity.operations.filter { it.kind == Operation.OperationKind.Action && !it.isInstanceOperation}.map { Pair(it.name, Capability.allCapabilities(CapabilityTarget.Operation).map { it.name }) }.toMap())
 
     private fun allInstanceCapabilities(entity: Entity): InstanceCapabilities =
             InstanceCapabilities(Capability.allCapabilities(CapabilityTarget.Instance).map { it.name },
                     entity.properties.filter { true }.map { Pair(it.name, Capability.allCapabilities(CapabilityTarget.Property).map { it.name }) }.toMap(),
                     entity.relationships.filter { true }.map { Pair(it.name, Capability.allCapabilities(CapabilityTarget.Relationship).map { it.name }) }.toMap(),
-                    entity.operations.filter { it.kind == Operation.OperationKind.Action && it.isInstanceOperation}.map { Pair(it.name, Capability.allCapabilities(CapabilityTarget.StaticOperation).map { it.name }) }.toMap())
+                    entity.operations.filter { it.kind == Operation.OperationKind.Action && it.isInstanceOperation}.map { Pair(it.name, Capability.allCapabilities(CapabilityTarget.Operation).map { it.name }) }.toMap())
 
     private fun getAccessControl(typeRef: TypeRef): AccessControl<*, *>? {
         val entityClass = kirraSpringMetamodel.getEntityClass(typeRef)!!

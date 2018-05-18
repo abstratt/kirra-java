@@ -8,7 +8,7 @@ import kotlin.reflect.KProperty
 
 
 enum class CapabilityTarget() {
-    Property, Relationship, StaticOperation, Operation, Entity, Instance
+    Property, Relationship, Operation, Entity, Instance
 }
 
 enum class Capability(vararg val targets : CapabilityTarget) {
@@ -17,7 +17,6 @@ enum class Capability(vararg val targets : CapabilityTarget) {
     List(CapabilityTarget.Entity),
     Read(CapabilityTarget.Instance, CapabilityTarget.Property, CapabilityTarget.Relationship),
     Update(CapabilityTarget.Instance, CapabilityTarget.Property, CapabilityTarget.Relationship),
-    StaticCall(CapabilityTarget.StaticOperation),
     Call(CapabilityTarget.Operation),
     None(*CapabilityTarget.values());
 
