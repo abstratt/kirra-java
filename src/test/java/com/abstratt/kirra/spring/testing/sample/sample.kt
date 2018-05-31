@@ -10,6 +10,7 @@ import com.abstratt.kirra.spring.userprofile.UserProfile
 import com.abstratt.kirra.spring.userprofile.UserProfileMarker
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Repository
 import org.springframework.stereotype.Service
@@ -55,6 +56,8 @@ class Product : BaseEntity() {
     var price: Double? = null
     @ManyToOne(optional = false)
     var category: Category? = null
+    @Column(nullable = true)
+    var available : Boolean? = true
 }
 
 @Entity
@@ -101,8 +104,15 @@ interface OrderRepository : BaseRepository<Order> {
 
 @Service
 open class OrderService : BaseService<Order, OrderRepository>(Order::class) {
+    @Autowired
+    lateinit var productRepository : ProductRepository
+
     @QueryOp
     open fun byStatus(toMatch : OrderStatus) = repository.findAllByStatus(toMatch)
+
+    @DomainAccessor
+    fun addItem_product(order : Order, pageRequest: PageRequest?) : Page<Product> =
+        productRepository.findAllByAvailableIsTrue(pageRequest)
 }
 
 @Entity
@@ -177,8 +187,10 @@ interface TransferRepository : BaseRepository<Transfer>
 
 @Repository
 interface ProductRepository : BaseRepository<Product> {
-    @RelationshipAccessor()
+    @RelationshipAccessor
     fun findAllByCategory(category : Category) : Collection<Product>
+
+    fun findAllByAvailableIsTrue(pageRequest : Pageable?) : Page<Product>
 }
 
 @Repository

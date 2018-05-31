@@ -48,9 +48,12 @@ open class KirraSpringConfiguration {
     @Autowired
     private lateinit var schemaManagement: SchemaManagement
 
+    @PersistenceContext
+    private lateinit var entityManager : EntityManager
+
     @Bean
     open fun instanceManagement() : InstanceManagement =
-        KirraSpringInstanceManagement(kirraSpringMetamodel, kirraSpringInstanceBridge, schemaManagement, securityService)
+        KirraSpringInstanceManagement(kirraSpringMetamodel, kirraSpringInstanceBridge, schemaManagement, securityService, entityManager)
 
     @Autowired
     private fun createServices(schema : Schema) {

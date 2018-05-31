@@ -1,14 +1,13 @@
 package com.abstratt.kirra.spring
 
-import com.abstratt.kirra.Operation
-import com.abstratt.kirra.Relationship
-import com.abstratt.kirra.TypeRef
+import com.abstratt.kirra.*
 import org.reflections.Reflections
 import org.reflections.util.ConfigurationBuilder
 import org.springframework.aop.support.AopUtils
 import org.springframework.beans.factory.NoSuchBeanDefinitionException
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ConfigurableApplicationContext
+import org.springframework.data.domain.Page
 import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
 import java.lang.reflect.AccessibleObject
@@ -81,6 +80,31 @@ class KirraSpringMetamodel {
     fun isEntityClass(clazz: Class<*>): Boolean =
         entityClasses.containsKey(clazz.name)
 
+    fun findDomainAccessor(operation: Operation, parameter: Parameter) : Pair<KClass<*>, KFunction<Page<*>>>? {
+        return findDomainAccessorInClass(getEntityClass(operation.owner)!!.kotlin, operation, parameter) ?:
+            findDomainAccessorInClass(getEntityServiceClass<BaseService<*,*>>(operation.owner), operation, parameter)
+    }
+
+    private fun findDomainAccessorInClass(kClass: KClass<*>?, operation: Operation, parameter: Parameter): Pair<KClass<*>, KFunction<Page<*>>>? {
+        if (kClass == null)
+            return null
+//        val kFunction = kClass.functions.find { it.name == operation.name}
+//        if (kFunction == null)
+//            return null
+//        val kParameter = kFunction.valueParameters.find { it.name == parameter.name }
+//        if (kParameter == null)
+//            return null
+//        val domainAnnotation = kParameter.findAnnotation<Domain>()
+        val accessorName = /*domainAnnotation?.let { it.accessor } ?: */ "${operation.name}_${parameter.name}"
+        val found = kClass.functions.find {
+            (
+                    it.name == accessorName ||
+                            it.findAnnotation<DomainAccessor>()?.let { it.parameterName == parameter.name } ?: false
+                    )
+                    && it.returnType.isSubtypeOf(Page::class.starProjectedType)
+        } as KFunction<Page<*>>?
+        return found?.let { kClass to found }
+    }
 
     fun namespaceToPackageName(namespace : String) : String = kirraSpringApplication.javaPackages.find { it.endsWith(".${namespace}") } ?: namespace
     fun getEntityClass(namespace: String, entityName: String): Class<BaseEntity>? {
@@ -89,12 +113,6 @@ class KirraSpringMetamodel {
         return found
     }
     fun getEntityClass(typeRef: TypeRef) = getEntityClass(typeRef.namespace, typeRef.typeName)
-
-    fun getServiceClass(typeRef : TypeRef) {
-        val serviceName = typeRef.typeName.decapitalize() + "Service"
-        val existingService = applicationContext.beanFactory.getSingleton(serviceName)
-
-    }
 
     fun getEnumClass(typeRef: TypeRef) : Class<Enum<*>>? {
         val packageName = namespaceToPackageName(typeRef.namespace)

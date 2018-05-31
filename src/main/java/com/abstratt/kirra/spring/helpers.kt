@@ -15,3 +15,4 @@ fun packageNameToNamespace(packageName : String) : String = packageName.split('.
 fun getLabel(name: String): String =
         StringUtils.splitByCharacterTypeCamelCase(name).map { it.capitalize() }.joinToString(" ", "", "")
 
+fun <T> Boolean.ifTrue(block : () -> T) : T? = if (this) block() else null

@@ -1,8 +1,7 @@
 package com.abstratt.kirra.spring
 
 import com.abstratt.kirra.Schema
-import com.abstratt.kirra.spring.testing.sample.Customer
-import com.abstratt.kirra.spring.testing.sample.Employee
+import com.abstratt.kirra.spring.testing.sample.*
 import com.abstratt.kirra.spring.userprofile.UserProfile
 import org.junit.Before
 import org.junit.runner.RunWith
@@ -35,10 +34,15 @@ abstract class TestBase {
     @Autowired
     protected lateinit var userProfileService: BaseService<UserProfile,*>
     @Autowired()
-    private lateinit var customerService: BaseService<Customer,*>
+    protected lateinit var customerService: BaseService<Customer,*>
     @Autowired
-    private lateinit var employeeService: BaseService<Employee,*>
-
+    protected lateinit var employeeService: BaseService<Employee,*>
+    @Autowired
+    protected lateinit var productService: BaseService<Product,*>
+    @Autowired
+    protected lateinit var categoryService: BaseService<Category,*>
+    @Autowired
+    protected lateinit var orderService: BaseService<Order,*>
     protected var user1: UserProfile? = null
     protected var user2: UserProfile? = null
     protected var user3: UserProfile? = null

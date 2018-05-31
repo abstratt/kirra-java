@@ -9,12 +9,13 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.lang.reflect.Method
+import javax.persistence.EntityManager
+import javax.persistence.PersistenceContext
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.*
-import kotlin.reflect.jvm.javaMethod
 
 @Service
 @Transactional
@@ -22,7 +23,8 @@ open class KirraSpringInstanceManagement (
     private val kirraSpringMetamodel: KirraSpringMetamodel,
     private val kirraSpringInstanceBridge: KirraSpringInstanceBridge,
     private val schemaManagement: SchemaManagement,
-    private val securityService: SecurityService
+    private val securityService: SecurityService,
+    private val entityManager : EntityManager
 ) : InstanceManagement {
 
     @Secured
@@ -43,6 +45,9 @@ open class KirraSpringInstanceManagement (
         val toConvert = found!!
         return kirraSpringInstanceBridge.toInstance(toConvert, InstanceManagement.DataProfile.Full)
     }
+
+    private fun retrieveJavaInstance(typeRef : TypeRef, externalId: String): BaseEntity? =
+        retrieveJavaInstance(typeRef.namespace, typeRef.typeName, externalId)
 
     private fun retrieveJavaInstance(namespace: String, entityName: String, externalId: String): BaseEntity? {
         val entityClass: Class<BaseEntity>? = kirraSpringMetamodel.getEntityClass(namespace, entityName)
@@ -87,6 +92,7 @@ open class KirraSpringInstanceManagement (
     }
 
     override fun saveContext() {
+        entityManager.flush()
     }
 
     override fun getEntityCapabilities(typeRef: TypeRef): EntityCapabilities {
@@ -237,13 +243,17 @@ open class KirraSpringInstanceManagement (
         }
         var customImplArguments : Map<String, Any?> = mapOf(Pair("pageRequest", pageRequest))
 
-        val (service, javaInstance: Any?, result) = doExecuteOperation(operation, externalId, arguments, customImplArguments)
-        return result
+        val result = doExecuteOperation(operation, externalId, arguments, customImplArguments)
+        return result.second
     }
 
     @Transactional(readOnly = false, propagation = Propagation.REQUIRED)
     override fun executeOperation(operation: Operation, externalId: String?, arguments: MutableList<*>?): MutableList<*> {
-        val (service, javaInstance: Any?, result) = doExecuteOperation(operation, externalId, arguments)
+        val service = getEntityService(operation.owner)
+
+        val entityInstance = externalId?.let { service.findById(it.toLong()) }
+
+        val (javaInstance, result) = doExecuteOperation(operation, externalId, arguments)
 
         if (javaInstance is BaseEntity) {
             service.update(javaInstance)
@@ -252,7 +262,62 @@ open class KirraSpringInstanceManagement (
         return result
     }
 
-    private fun doExecuteOperation(operation: Operation, externalId: String?, arguments: MutableList<*>?, customImplArguments : Map<String, Any?> = emptyMap()): Triple<BaseService<BaseEntity, *>, Any?, MutableList<*>> {
+    data class MatchedOperation(
+        val javaInstance : Any, val matchedModelArguments :Map<String, Any?>
+    )
+
+    private fun doExecuteOperation(operation: Operation, externalId: String?, arguments: MutableList<*>?, customImplArguments : Map<String, Any?> = emptyMap()): Pair<Any, MutableList<*>> {
+        val (entityInstance, matchedModelArguments, pair) = matchOperation(operation, externalId, arguments, customImplArguments)
+
+        val (javaInstance, actualMethod) = pair
+
+        val isServiceMethod = javaInstance is BaseService<*,*>
+        BusinessException.ensure(javaInstance != null, ErrorCode.UNKNOWN_OBJECT)
+
+        val boundMethod = actualMethod
+
+        val offset = if (operation.isInstanceOperation && isServiceMethod) 1 else 0
+        var actualParameterIndex = -1
+        val kotlinMatchedModelArguments = matchedModelArguments.map { namedValue ->
+            val index = operation.parameters.indexOfFirst { it.name == namedValue.key }
+            KirraException.ensure(index >= 0, KirraException.Kind.ELEMENT_NOT_FOUND, { "Missing parameter: ${namedValue.key}" })
+            val kirraParameter = operation.parameters[index]
+            val ktParameter = boundMethod.parameters[offset + ++actualParameterIndex]
+            val ktValue = namedValue.value
+            Pair(ktParameter!!, ktValue)
+        }
+
+        val kotlinMatchedImplArguments = customImplArguments.map { namedImplArgument ->
+            Pair(boundMethod.parameters[++actualParameterIndex], namedImplArgument.value)
+        }.filterNotNull()
+
+        val kotlinMatchedArguments = (kotlinMatchedModelArguments + kotlinMatchedImplArguments).toMutableList()
+
+        if (isServiceMethod) {
+            // a service may implement an instance operation - in that case, the entity instance is the first parameter
+            if (operation.isInstanceOperation) {
+                // first parameter holds the target instance, by convention
+                val serviceParameter = actualMethod.parameters[0]
+                kotlinMatchedArguments.add(0, Pair(serviceParameter, entityInstance))
+            }
+        }
+        val callResult = boundMethod.invoke(javaInstance, *(kotlinMatchedArguments.map { it.second }.toTypedArray()))
+
+        val asList : MutableList<*> = if (callResult == null || callResult is Unit)
+            emptyList<Any>().toMutableList()
+        else if (callResult is Iterable<*>)
+            callResult.toMutableList()
+        else
+            listOf(callResult).toMutableList()
+        val result = asList.map { if (it is BaseEntity) {
+            val toConvert = it
+            kirraSpringInstanceBridge.toInstance(toConvert, InstanceManagement.DataProfile.Full)
+        } else it }.toMutableList()
+
+        return Pair(javaInstance!!, result)
+    }
+
+    private fun matchOperation(operation: Operation, externalId: String?, arguments: MutableList<*>?, customImplArguments: Map<String, Any?>): Triple<BaseEntity?, Map<String, Any?>, Pair<Any?, Method>> {
         val kirraEntity = schemaManagement.getEntity(operation.owner)
         val entityClass: Class<BaseEntity> = kirraSpringMetamodel.getEntityClass(kirraEntity.entityNamespace, kirraEntity.name)!!
         val service = getEntityService(operation.owner)
@@ -278,50 +343,11 @@ open class KirraSpringInstanceManagement (
 
         KirraException.ensure(entityMethod != null || serviceImplementationMethod != null, KirraException.Kind.ELEMENT_NOT_FOUND, { "No operation named ${operation.name}" })
 
-        val (javaInstance, actualMethod, functionParameterNames) = if (serviceMethod != null) Triple(service, serviceMethod!!, serviceImplementationMethod.parameters.map { it.name }) else Triple(entityInstance, entityMethod!!, entityMethod.parameters.map { it.name })
-        BusinessException.ensure(javaInstance != null, ErrorCode.UNKNOWN_OBJECT)
-
-        val boundMethod = actualMethod
-
-        val offset = if (operation.isInstanceOperation && serviceMethod != null) 1 else 0
-        var actualParameterIndex = -1
-        val kotlinMatchedModelArguments = matchedModelArguments.map { namedValue ->
-            val index = operation.parameters.indexOfFirst { it.name == namedValue.key }
-            KirraException.ensure(index >= 0, KirraException.Kind.ELEMENT_NOT_FOUND, { "Missing parameter: ${namedValue.key}" })
-            val kirraParameter = operation.parameters[index]
-            val ktParameter = boundMethod.parameters[offset + ++actualParameterIndex]
-            val ktValue = namedValue.value
-            Pair(ktParameter!!, ktValue)
-        }
-
-        val kotlinMatchedImplArguments = customImplArguments.map { namedImplArgument ->
-            Pair(boundMethod.parameters[++actualParameterIndex], namedImplArgument.value)
-        }.filterNotNull()
-
-        val kotlinMatchedArguments = (kotlinMatchedModelArguments + kotlinMatchedImplArguments).toMutableList()
-
-        if (serviceMethod != null) {
-            // a service may implement an instance operation - in that case, the entity instance is the first parameter
-            if (operation.isInstanceOperation) {
-                // first parameter holds the target instance, by convention
-                val serviceParameter = serviceMethod.parameters[0]
-                kotlinMatchedArguments.add(0, Pair(serviceParameter, entityInstance))
-            }
-        }
-        val callResult = boundMethod.invoke(javaInstance, *(kotlinMatchedArguments.map { it.second }.toTypedArray()))
-
-        val asList : MutableList<*> = if (callResult == null || callResult is Unit)
-            emptyList<Any>().toMutableList()
-        else if (callResult is Iterable<*>)
-            callResult.toMutableList()
+        val pair = if (entityMethod == null)
+            Pair(service, serviceMethod!!)
         else
-            listOf(callResult).toMutableList()
-        val result = asList.map { if (it is BaseEntity) {
-            val toConvert = it
-            kirraSpringInstanceBridge.toInstance(toConvert, InstanceManagement.DataProfile.Full)
-        } else it }.toMutableList()
-
-        return Triple(service, javaInstance, result)
+            Pair(entityInstance, entityMethod!!)
+        return Triple(entityInstance, matchedModelArguments, pair)
     }
 
     private fun findMatchingMethod(kClass: KClass<out Any>, operationName: String?, matchedArguments: Map<String, Any?>): Method? {
@@ -360,8 +386,24 @@ open class KirraSpringInstanceManagement (
                 }.filter { it.second != null }.toMap()
     }
 
-    override fun getParameterDomain(entity: Entity, externalId: String, action: Operation, parameter: Parameter): MutableList<Instance> {
-        //TODO-RC honor parameter constraints
+    override fun getParameterDomain(entity: Entity, externalId: String?, action: Operation, parameter: Parameter): MutableList<Instance> {
+        val accessorPair = kirraSpringMetamodel.findDomainAccessor(action, parameter)
+        if (accessorPair != null) {
+            val (accessorClass, accessorMethod) = accessorPair
+            val entityDefinedAccessor = accessorClass.isSubclassOf(BaseEntity::class)
+            val found = action.isInstanceOperation.ifTrue {
+                retrieveJavaInstance(entity.typeRef, externalId!!)
+            }
+            val pageRequest : PageRequest? = defaultPageRequest()
+            val entityService = getEntityService(entity.typeRef)
+            val domain =
+                    when {
+                        entityDefinedAccessor -> accessorMethod.call(found, pageRequest)
+                        action.isInstanceOperation -> accessorMethod.call(entityService, found, pageRequest)
+                        else -> accessorMethod.call(entityService, pageRequest)
+                    }
+            return kirraSpringInstanceBridge.toInstances(domain.content as Iterable<BaseEntity>).toMutableList()
+        }
         return getInstances(parameter.typeRef.entityNamespace, parameter.typeRef.typeName, InstanceManagement.DataProfile.Slim)
     }
 
@@ -427,5 +469,4 @@ class BoundFunction<R>(val instance : Any, val baseFunction : KFunction<R>) : KF
         get() = baseFunction.name
 
 }
-
 

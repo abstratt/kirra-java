@@ -59,7 +59,7 @@ open class SchemaTests : TestBase() {
         val entity = schema.allEntities.find { it.name == Product::class.simpleName }
         assertNotNull(entity)
         val properties = entity!!.properties
-        assertEquals(3, properties.size)
+        assertEquals(4, properties.size)
 
         val nameProperty = properties.find { it.name == Product::name.name }!!
         assertEquals("String", nameProperty.type)
@@ -72,6 +72,12 @@ open class SchemaTests : TestBase() {
         assertEquals(TypeRef.TypeKind.Primitive, priceProperty.typeRef.kind)
         assertEquals("kirra.Double", priceProperty.typeRef.fullName)
         assertTrue(priceProperty.isRequired)
+
+        val availableProperty = properties.find { it.name == Product::available.name }!!
+        assertEquals("Boolean", availableProperty.type)
+        assertEquals(TypeRef.TypeKind.Primitive, availableProperty.typeRef.kind)
+        assertEquals("kirra.Boolean", availableProperty.typeRef.fullName)
+        assertFalse(availableProperty.isRequired)
 
         val monikerProperty = properties.find { it.name == Product::moniker.name }!!
         assertEquals("String", monikerProperty.type)
@@ -153,6 +159,15 @@ open class SchemaTests : TestBase() {
         assertEquals(Operation.OperationKind.Action, addItemAction!!.kind)
     }
 
+    @Test
+    fun testParameterDomain() {
+        val order = schema.allEntities.find { it.name == Order::class.simpleName }!!
+        val addItemAction = order.operations.find { it.name == Order::addItem.name }!!
+        val productParameter = addItemAction.parameters.find { it.name == "product" }!!
+        val domainAccessor = kirraSpringMetamodel.findDomainAccessor(addItemAction, productParameter)
+        assertNotNull(domainAccessor)
+        assertEquals(domainAccessor!!.second, OrderService::addItem_product)
+    }
 
     @Test
     fun testRelationship_Child() {

@@ -188,4 +188,6 @@ class KirraSpringInstanceBridge {
         return kirraValue
     }
 
+    fun toExternalId(id: Long?): String? = id?.toString()
+
 }
