@@ -1,5 +1,6 @@
 package com.abstratt.kirra.spring
 
+import com.abstratt.kirra.pojo.*
 import com.abstratt.kirra.spring.testing.sample.Customer
 import com.abstratt.kirra.spring.testing.sample.Employee
 import com.abstratt.kirra.spring.testing.sample.Order

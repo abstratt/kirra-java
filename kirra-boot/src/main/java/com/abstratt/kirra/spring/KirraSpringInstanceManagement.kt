@@ -1,6 +1,7 @@
 package com.abstratt.kirra.spring
 
 import com.abstratt.kirra.*
+import com.abstratt.kirra.pojo.*
 import com.abstratt.kirra.spring.api.SecurityService
 import org.springframework.aop.support.AopUtils
 import org.springframework.data.domain.PageRequest

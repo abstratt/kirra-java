@@ -1,5 +1,6 @@
 package com.abstratt.kirra.spring
 
+import com.abstratt.kirra.pojo.IBaseEntity
 import javax.persistence.GeneratedValue
 import javax.persistence.Id
 import javax.persistence.MappedSuperclass
@@ -7,7 +8,7 @@ import javax.persistence.MappedSuperclass
 @MappedSuperclass
 abstract class BaseEntity(
     @Id @GeneratedValue open var id: Long? = null
-) {
+) : IBaseEntity {
     override fun equals(other: Any?): Boolean {
         val basicCheck = super.equals(other)
         if (basicCheck) {

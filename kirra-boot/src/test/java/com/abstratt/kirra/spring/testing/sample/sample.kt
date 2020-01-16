@@ -1,5 +1,6 @@
 package com.abstratt.kirra.spring.testing.sample
 
+import com.abstratt.kirra.pojo.*
 import com.abstratt.kirra.spring.*
 import com.abstratt.kirra.spring.api.KirraSpringAPIMarker
 import com.abstratt.kirra.spring.user.RoleEntity

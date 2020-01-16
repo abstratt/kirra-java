@@ -1,6 +1,5 @@
-package com.abstratt.kirra.spring
+package com.abstratt.kirra.pojo
 
-import com.abstratt.kirra.spring.user.RoleEntity
 import java.util.*
 import kotlin.reflect.KClass
 
@@ -13,14 +12,14 @@ data class ConstraintGrant(val constraint: Constraint<*, *>, val granted: Boolea
 
 data class CapabilityGrant(val capability: Capability, val constraintGrant: ConstraintGrant)
 
-data class RoleGrant(val roleClass: KClass<out RoleEntity>, val capabilityGrants: MutableCollection<CapabilityGrant>) {
-    constructor(roleClass: KClass<out RoleEntity>, capabilityGrants: Iterable<CapabilityGrant>) : this(roleClass, capabilityGrants.toMutableList())
+data class RoleGrant(val roleClass: KClass<out IRoleEntity>, val capabilityGrants: MutableCollection<CapabilityGrant>) {
+    constructor(roleClass: KClass<out IRoleEntity>, capabilityGrants: Iterable<CapabilityGrant>) : this(roleClass, capabilityGrants.toMutableList())
 
     fun add(another: RoleGrant) =
         apply { capabilityGrants.addAll(another.capabilityGrants) }
 }
 
-data class GrantLayer(val roleGrants : MutableMap<KClass<out RoleEntity>, RoleGrant>) {
+data class GrantLayer(val roleGrants : MutableMap<KClass<out IRoleEntity>, RoleGrant>) {
     fun merge(next: GrantLayer): GrantLayer =
         apply { roleGrants.putAll(next.roleGrants) }
 }
@@ -50,8 +49,8 @@ data class GrantLayer(val roleGrants : MutableMap<KClass<out RoleEntity>, RoleGr
  * @param constraintLayers layered constraintLayers to evaluate (outer to inner)
  */
 fun computeCapabilities(
-        instance: BaseEntity?,
-        roles: List<RoleEntity>,
+        instance: IBaseEntity?,
+        roles: List<IRoleEntity>,
         targets: Iterable<CapabilityTarget>,
         constraintLayers: List<ConstraintLayer>
 ): List<Capability> {
@@ -74,7 +73,7 @@ fun computeCapabilities(
             .filter {
                 it.constraintGrant.granted
                         && constraintFilter(instance, roles).invoke(
-                        it.constraintGrant.constraint as Constraint<BaseEntity, RoleEntity>
+                        it.constraintGrant.constraint as Constraint<IBaseEntity, IRoleEntity>
                 )
             }
 
@@ -86,20 +85,20 @@ fun computeCapabilities(
 /**
  * A layer is a list of role grants.
  */
-fun buildLayer(targets: Iterable<CapabilityTarget>, roleClasses: List<KClass<out RoleEntity>>, constraints: List<Constraint<*, *>>): GrantLayer =
-    GrantLayer(
-        constraints.map { constraint ->
-            constraint.roles
-                .filter { roleClasses.contains(it) }
-                .map { role ->
-                    buildRoleGrant(targets, role, constraint)
-                }
-        }.flatten()
-        .groupBy { it.roleClass }
-        .map {
-            Pair(it.key, it.value.reduce { acc, it -> acc.add(it) })
-        }.toMap(LinkedHashMap())
-    )
+fun buildLayer(targets: Iterable<CapabilityTarget>, roleClasses: List<KClass<out IRoleEntity>>, constraints: List<Constraint<*, *>>): GrantLayer =
+        GrantLayer(
+                constraints.map { constraint ->
+                    constraint.roles
+                            .filter { roleClasses.contains(it) }
+                            .map { role ->
+                                buildRoleGrant(targets, role, constraint)
+                            }
+                }.flatten()
+                        .groupBy { it.roleClass }
+                        .map {
+                            Pair(it.key, it.value.reduce { acc, it -> acc.add(it) })
+                        }.toMap(LinkedHashMap())
+        )
 
 /**
  * Builds a role grant from one constraint.
@@ -108,7 +107,7 @@ fun buildLayer(targets: Iterable<CapabilityTarget>, roleClasses: List<KClass<out
  */
 fun buildRoleGrant(
         targets: Iterable<CapabilityTarget>,
-        roleClass: KClass<out RoleEntity>,
+        roleClass: KClass<out IRoleEntity>,
         constraint: Constraint<*, *>
 ): RoleGrant {
     val (granted, capabilities) = if (constraint.capabilities == setOf(Capability.None))
@@ -124,18 +123,18 @@ fun buildRoleGrant(
 }
 
 fun computeCapabilities(
-        instance: BaseEntity?,
-        roles: List<RoleEntity>,
+        instance: IBaseEntity?,
+        roles: List<IRoleEntity>,
         targets: Iterable<CapabilityTarget>,
         vararg constraints: ConstraintLayer
 ): List<Capability> = computeCapabilities(instance, roles, targets, constraints.toList())
 
 
-fun <CON : Constraint<E, RE>, E : BaseEntity, RE : RoleEntity> constraintFilter(instance: E?, roles: List<RE>): (CON) -> Boolean =
+fun <CON : Constraint<E, RE>, E : IBaseEntity, RE : IRoleEntity> constraintFilter(instance: E?, roles: List<RE>): (CON) -> Boolean =
     { it: CON ->
         it.accessPredicate == null || roles.any { role -> checkPredicate(it, instance, role) }
     }
 
-fun <CON : Constraint<E, RE>, E : BaseEntity, RE : RoleEntity> checkPredicate(constraint: CON, instance: E?, role: RE): Boolean =
+fun <CON : Constraint<E, RE>, E : IBaseEntity, RE : IRoleEntity> checkPredicate(constraint: CON, instance: E?, role: RE): Boolean =
     constraint.accessPredicate!!(instance, role)
 

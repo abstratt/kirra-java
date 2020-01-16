@@ -1,5 +1,6 @@
 package com.abstratt.kirra.spring.user
 
+import com.abstratt.kirra.pojo.IRoleEntity
 import com.abstratt.kirra.spring.*
 import com.abstratt.kirra.spring.userprofile.UserProfile
 import org.springframework.beans.factory.annotation.Autowired
@@ -19,7 +20,7 @@ abstract class RoleEntity(
     id : Long?,
     @ManyToOne
     var user : UserProfile? = null
-) : BaseEntity(id) {
+) : BaseEntity(id), IRoleEntity {
     @ImplementationOp
     abstract fun getRole() : UserRole
 }
