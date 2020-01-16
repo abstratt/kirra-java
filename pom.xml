@@ -16,8 +16,8 @@
         <spring-boot.version>2.0.1.RELEASE</spring-boot.version>
         <hibernate.version>5.2.16.Final</hibernate.version>
         <junit.version>4.12</junit.version>
-
         <jackson.version>2.9.4</jackson.version>
+        <kirra.version>2.7.201911</kirra.version>
     </properties>
 
     <repositories>
@@ -72,17 +72,17 @@
         <dependency>
             <groupId>com.abstratt.kirra</groupId>
             <artifactId>com.abstratt.kirra.api</artifactId>
-            <version>2.5.201812</version>
+            <version>${kirra.version}</version>
         </dependency>
         <dependency>
             <groupId>com.abstratt.kirra</groupId>
             <artifactId>com.abstratt.kirra.rest.common</artifactId>
-            <version>2.5.201812</version>
+            <version>${kirra.version}</version>
         </dependency>
         <dependency>
             <groupId>com.abstratt.kirra</groupId>
             <artifactId>com.abstratt.kirra.rest.resources</artifactId>
-            <version>2.5.201812</version>
+            <version>${kirra.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
