@@ -1,6 +1,7 @@
 package com.abstratt.kirra.spring
 
 import com.abstratt.kirra.*
+import com.abstratt.kirra.pojo.getTypeRef
 import com.abstratt.kirra.statemachine.StateToken
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component

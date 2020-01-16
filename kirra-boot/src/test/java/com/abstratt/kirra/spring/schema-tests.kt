@@ -3,6 +3,7 @@ package com.abstratt.kirra.spring
 import com.abstratt.kirra.Operation
 import com.abstratt.kirra.Relationship
 import com.abstratt.kirra.TypeRef
+import com.abstratt.kirra.pojo.getTypeRef
 import com.abstratt.kirra.spring.testing.sample.*
 import com.abstratt.kirra.spring.userprofile.UserProfile
 import org.apache.commons.lang3.StringUtils

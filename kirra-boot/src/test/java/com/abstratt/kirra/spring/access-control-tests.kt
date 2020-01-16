@@ -1,5 +1,6 @@
 package com.abstratt.kirra.spring
 
+import com.abstratt.kirra.pojo.getTypeRef
 import com.abstratt.kirra.spring.testing.sample.Category
 import com.abstratt.kirra.spring.testing.sample.Customer
 import com.abstratt.kirra.spring.testing.sample.SampleRole

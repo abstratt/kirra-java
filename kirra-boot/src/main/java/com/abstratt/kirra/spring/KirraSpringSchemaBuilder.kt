@@ -3,6 +3,8 @@ package com.abstratt.kirra.spring
 import com.abstratt.kirra.*
 import com.abstratt.kirra.Entity
 import com.abstratt.kirra.Parameter
+import com.abstratt.kirra.pojo.getLabel
+import com.abstratt.kirra.pojo.packageNameToNamespace
 import com.abstratt.kirra.spring.user.RoleEntity
 import com.abstratt.kirra.spring.userprofile.UserProfile
 import com.abstratt.kirra.statemachine.StateMachineInstance

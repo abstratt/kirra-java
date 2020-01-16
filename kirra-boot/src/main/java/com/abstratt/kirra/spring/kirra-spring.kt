@@ -9,9 +9,6 @@ fun defaultPageRequest(page: Int? = 0, limit: Int? = 10) = PageRequest(
 )
 
 
-fun toPackageNames(javaClasses : Array<KClass<out BaseEntity>>) : Array<String> =
-        javaClasses.map { it.java.`package`.name }.toSet().toTypedArray()
-
 
 
 
