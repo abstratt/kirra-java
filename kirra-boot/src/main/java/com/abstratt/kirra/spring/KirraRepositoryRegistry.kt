@@ -7,8 +7,6 @@ import org.springframework.beans.factory.NoSuchBeanDefinitionException
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.data.jpa.repository.JpaRepository
-import org.springframework.data.jpa.repository.support.JpaRepositoryFactoryBean
-import org.springframework.data.jpa.repository.support.SimpleJpaRepository
 import org.springframework.stereotype.Component
 import javax.persistence.EntityManager
 import javax.persistence.PersistenceContext

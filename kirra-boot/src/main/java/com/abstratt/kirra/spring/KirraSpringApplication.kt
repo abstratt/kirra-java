@@ -1,17 +1,6 @@
 package com.abstratt.kirra.spring;
 
 import com.abstratt.kirra.KirraApplication
-import com.abstratt.kirra.spring.BaseEntity
-import com.abstratt.kirra.spring.toPackageNames
-import org.reflections.util.ConfigurationBuilder
-import org.springframework.beans.factory.BeanFactory
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.beans.factory.annotation.Value
-import org.springframework.boot.autoconfigure.domain.EntityScanPackages
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Configuration
-import org.springframework.context.annotation.Profile
-import org.springframework.stereotype.Component
 import kotlin.reflect.KClass
 
 class KirraSpringApplication(name : String, val javaPackages: Array<String>) : KirraApplication(name) {

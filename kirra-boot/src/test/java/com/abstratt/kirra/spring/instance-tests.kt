@@ -5,8 +5,6 @@ import com.abstratt.kirra.spring.testing.sample.*
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.context.ConfigurableApplicationContext
 
 
 open class InstanceTests : TestBase() {

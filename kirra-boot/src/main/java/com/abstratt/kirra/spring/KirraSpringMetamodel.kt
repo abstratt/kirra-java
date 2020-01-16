@@ -1,6 +1,9 @@
 package com.abstratt.kirra.spring
 
-import com.abstratt.kirra.*
+import com.abstratt.kirra.Operation
+import com.abstratt.kirra.Parameter
+import com.abstratt.kirra.Relationship
+import com.abstratt.kirra.TypeRef
 import org.reflections.Reflections
 import org.reflections.util.ConfigurationBuilder
 import org.springframework.aop.support.AopUtils
@@ -19,7 +22,7 @@ import javax.persistence.metamodel.Metamodel
 import javax.persistence.metamodel.SingularAttribute
 import kotlin.reflect.*
 import kotlin.reflect.full.*
-import kotlin.reflect.jvm.*
+import kotlin.reflect.jvm.kotlinProperty
 
 @Component
 class KirraSpringMetamodel {

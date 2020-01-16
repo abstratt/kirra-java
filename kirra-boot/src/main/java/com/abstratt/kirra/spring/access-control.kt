@@ -1,7 +1,7 @@
 package com.abstratt.kirra.spring
 
 import com.abstratt.kirra.spring.user.RoleEntity
-import java.util.LinkedHashMap
+import java.util.*
 import kotlin.reflect.KClass
 
 

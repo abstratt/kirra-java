@@ -1,18 +1,11 @@
 package com.abstratt.kirra.spring
 
-import com.abstratt.kirra.Schema
-import com.abstratt.kirra.spring.testing.sample.*
-import com.abstratt.kirra.spring.userprofile.UserProfileService
+import com.abstratt.kirra.spring.testing.sample.Category
+import com.abstratt.kirra.spring.testing.sample.Customer
+import com.abstratt.kirra.spring.testing.sample.SampleRole
 import com.abstratt.kirra.spring.userprofile.UserProfile
 import org.junit.Assert
-import org.junit.Before
 import org.junit.Test
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.test.annotation.Rollback
-import org.springframework.transaction.annotation.Transactional
-import javax.persistence.EntityManager
-import javax.persistence.PersistenceContext
-import javax.transaction.TransactionScoped
 
 open class AccessControlTests : TestBase() {
     @Test

@@ -1,7 +1,6 @@
 package com.abstratt.kirra.spring.userprofile
 
 import com.abstratt.kirra.spring.*
-import com.abstratt.kirra.spring.user.RoleEntity
 import org.springframework.stereotype.Repository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation

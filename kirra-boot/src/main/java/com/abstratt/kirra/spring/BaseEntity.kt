@@ -1,10 +1,8 @@
 package com.abstratt.kirra.spring
 
-import com.abstratt.kirra.rest.common.KirraContext
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.MappedSuperclass;
-import javax.persistence.PrePersist
+import javax.persistence.GeneratedValue
+import javax.persistence.Id
+import javax.persistence.MappedSuperclass
 
 @MappedSuperclass
 abstract class BaseEntity(

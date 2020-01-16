@@ -2,15 +2,12 @@ package com.abstratt.kirra.spring.api
 
 import com.abstratt.kirra.InstanceManagement
 import com.abstratt.kirra.SchemaManagement
-import com.abstratt.kirra.SchemaManagementSnapshot
 import com.abstratt.kirra.rest.common.KirraContext
 import com.abstratt.kirra.spring.KirraSpringApplication
-import com.abstratt.kirra.spring.user.KirraSpringAuthenticationProvider
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
 import java.net.URI
-import java.util.*
 import javax.servlet.FilterChain
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse

@@ -10,12 +10,13 @@ import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.lang.reflect.Method
 import javax.persistence.EntityManager
-import javax.persistence.PersistenceContext
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
 import kotlin.reflect.KProperty1
-import kotlin.reflect.full.*
+import kotlin.reflect.full.instanceParameter
+import kotlin.reflect.full.isSubclassOf
+import kotlin.reflect.full.memberProperties
 
 @Service
 @Transactional

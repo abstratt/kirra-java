@@ -1,6 +1,7 @@
 package com.abstratt.kirra.spring.api
 
-import com.abstratt.kirra.spring.user.*
+import com.abstratt.kirra.spring.user.RoleEntity
+import com.abstratt.kirra.spring.user.RoleService
 import com.abstratt.kirra.spring.userprofile.UserProfile
 import com.abstratt.kirra.spring.userprofile.UserProfileService
 import org.springframework.beans.factory.annotation.Autowired
