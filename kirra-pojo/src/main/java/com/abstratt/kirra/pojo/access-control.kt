@@ -25,6 +25,29 @@ data class GrantLayer(val roleGrants : MutableMap<KClass<out IRoleEntity>, RoleG
 }
 
 
+interface IUserRole {
+}
+
+interface IUserProfile : IBaseEntity {
+
+}
+
+interface IRoleEntityService<RE : IRoleEntity> : IBaseService<RE>  {
+    fun findByUser(userProfile : IUserProfile) : RE?
+}
+
+
+
+fun IUserRole.roleName() : String {
+    if (this is Enum<*>) {
+        return this.name
+    }
+    return this::class.simpleName!!
+}
+
+
+
+
 /**
  * Computes the capabilities for a user with the given roles.
  *

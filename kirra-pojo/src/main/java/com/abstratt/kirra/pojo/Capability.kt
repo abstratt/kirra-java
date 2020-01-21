@@ -4,10 +4,12 @@ import java.util.*
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KProperty
+import kotlin.reflect.KProperty1
 
-interface IRoleEntity
-interface IBaseEntity
-
+interface IRoleEntity : IBaseEntity{
+    @ImplementationOp
+    fun getRole() : IUserRole
+}
 enum class CapabilityTarget() {
     Property, Relationship, Operation, Entity, Instance
 }
@@ -52,16 +54,16 @@ fun <E : IBaseEntity, RE : IRoleEntity> constraint(
 
 
 fun <E : IBaseEntity, RE : IRoleEntity> constraint(property : KProperty<*>,
-                                                                                                                                         roles : Set<KClass<RE>>, capabilities: Set<Capability>, condition : ((E?, RE) -> Boolean)? = null) =
+                                                   roles : Set<KClass<RE>>, capabilities: Set<Capability>, condition : ((E?, RE) -> Boolean)? = null) =
         DataConstraint(property, roles, capabilities, condition)
 
 
 fun <E : IBaseEntity, RE : IRoleEntity> constraint(function : KFunction<*>,
-                                                                                                                                         roles : Set<KClass<RE>>, capabilities: Set<Capability>, condition : ((E?, RE) -> Boolean)? = null) =
+                                                   roles : Set<KClass<RE>>, capabilities: Set<Capability>, condition : ((E?, RE) -> Boolean)? = null) =
         BehaviorConstraint(function, roles, capabilities, condition)
 
 fun <E : IBaseEntity, RE : IRoleEntity> constraint(clazz : KClass<E>,
-                                                                                                                                         roles : Set<KClass<RE>>, capabilities: Set<Capability>, condition : ((E?, RE) -> Boolean)? = null) =
+                                                   roles : Set<KClass<RE>>, capabilities: Set<Capability>, condition : ((E?, RE) -> Boolean)? = null) =
         EntityConstraint(roles, capabilities, condition)
 
 

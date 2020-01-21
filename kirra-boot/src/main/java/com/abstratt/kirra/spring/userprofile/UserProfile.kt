@@ -1,5 +1,6 @@
 package com.abstratt.kirra.spring.userprofile
 
+import com.abstratt.kirra.pojo.IUserProfile
 import com.abstratt.kirra.spring.*
 import org.springframework.stereotype.Repository
 import org.springframework.stereotype.Service
@@ -16,7 +17,7 @@ class UserProfile(
         var password: String? = null
 //        @OneToMany(mappedBy = "user", targetEntity = RoleEntity::class)
 //        var roles : Set<RoleEntity>
-) : BaseEntity(id) {
+) : BaseEntity(id), IUserProfile {
 
     fun updatePassword(newPassword : String) {
         password = newPassword

@@ -1,6 +1,6 @@
 package com.abstratt.kirra.spring.user
 
-import com.abstratt.kirra.pojo.IRoleEntity
+import com.abstratt.kirra.pojo.*
 import com.abstratt.kirra.spring.*
 import com.abstratt.kirra.spring.userprofile.UserProfile
 import org.springframework.beans.factory.annotation.Autowired
@@ -21,28 +21,20 @@ abstract class RoleEntity(
     @ManyToOne
     var user : UserProfile? = null
 ) : BaseEntity(id), IRoleEntity {
-    @ImplementationOp
-    abstract fun getRole() : UserRole
 }
 
-abstract class RoleEntityService<RE : RoleEntity, RR : RoleRepository<RE>>(entityClass : KClass<RE>) : BaseService<RE, RR>(entityClass) {
-    fun findByUser(userProfile : UserProfile) : RE? = repository.findByUser(userProfile)
+abstract class RoleEntityService<RE : RoleEntity, RR : RoleRepository<RE>>(entityClass : KClass<RE>) : BaseService<RE, RR>(entityClass), IRoleEntityService<RE> {
+    override fun findByUser(userProfile : IUserProfile) : RE? = repository.findByUser(userProfile)
 }
 
-interface UserRole {
+interface UserRole : IUserRole {
     fun toAuthorityName() : String = "ROLE_${(this as Enum<*>).name}"
     fun toGrantedAuthority() : GrantedAuthority = SimpleGrantedAuthority(toAuthorityName())
-    fun roleName() : String {
-        if (this is Enum<*>) {
-            return this.name
-        }
-        return this::class.simpleName!!
-    }
 }
 
 @NoRepositoryBean
 interface RoleRepository<E : RoleEntity> : BaseRepository<E> {
-    fun findByUser(user : UserProfile) : E?
+    fun findByUser(user : IUserProfile) : E?
 }
 
 @Service
@@ -54,7 +46,7 @@ open class RoleService {
     lateinit var kirraRepositoryRegistry: KirraRepositoryRegistry
 
     fun findAuthorities(user : UserProfile): List<GrantedAuthority> =
-            findRoleObjects(user).map { it.getRole().toGrantedAuthority() }
+            findRoleObjects(user).map { (it.getRole() as UserRole).toGrantedAuthority() }
 
     fun findRoleObjects(user : UserProfile): List<RoleEntity> =
             kirraJavaApplication.applicationUserRoles.map { asRole<RoleEntity>(user, it) }.filterNotNull()

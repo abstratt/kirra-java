@@ -1,7 +1,9 @@
 package com.abstratt.kirra.spring
 
 import com.abstratt.kirra.*
+import com.abstratt.kirra.pojo.IBaseEntity
 import com.abstratt.kirra.spring.api.SecurityService
+import com.abstratt.kirra.spring.boot.KirraSpringMetamodel
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ConfigurableApplicationContext
@@ -67,9 +69,9 @@ open class KirraSpringConfiguration {
             logger.info("Creating service for ${entity.name} as ${serviceName}")
             val entityJavaClass = kirraSpringMetamodel.getEntityClass(entity.entityNamespace, entity.name)
             assert(entityJavaClass != null, { "No entity class for ${entity.typeRef}"})
-            val entityClass : KClass<BaseEntity> = entityJavaClass!!.kotlin
+            val entityClass : KClass<IBaseEntity> = entityJavaClass!!.kotlin
             val genericService = GenericService(entityClass)
-            val repository = kirraRepositoryRegistry.findOrCreateRepository<BaseEntity>(entity.name, entityClass)
+            val repository = kirraRepositoryRegistry.findOrCreateRepository<IBaseEntity>(entity.name, entityClass)
             genericService.repository = repository
             applicationContext.beanFactory.registerSingleton(serviceName, genericService)
             logger.debug("Service created for ${entity.name}")

@@ -1,6 +1,8 @@
 package com.abstratt.kirra.spring
 
 import com.abstratt.kirra.Schema
+import com.abstratt.kirra.pojo.IBaseService
+import com.abstratt.kirra.spring.boot.KirraSpringMetamodel
 import com.abstratt.kirra.spring.testing.sample.*
 import com.abstratt.kirra.spring.userprofile.UserProfile
 import org.junit.Before
@@ -32,17 +34,17 @@ abstract class TestBase {
     protected lateinit var securityService: TestSecurityService
 
     @Autowired
-    protected lateinit var userProfileService: BaseService<UserProfile,*>
+    protected lateinit var userProfileService: IBaseService<UserProfile>
     @Autowired()
-    protected lateinit var customerService: BaseService<Customer,*>
+    protected lateinit var customerService: IBaseService<Customer>
     @Autowired
-    protected lateinit var employeeService: BaseService<Employee,*>
+    protected lateinit var employeeService: IBaseService<Employee>
     @Autowired
-    protected lateinit var productService: BaseService<Product,*>
+    protected lateinit var productService: IBaseService<Product>
     @Autowired
-    protected lateinit var categoryService: BaseService<Category,*>
+    protected lateinit var categoryService: IBaseService<Category>
     @Autowired
-    protected lateinit var orderService: BaseService<Order,*>
+    protected lateinit var orderService: IBaseService<Order>
     protected var user1: UserProfile? = null
     protected var user2: UserProfile? = null
     protected var user3: UserProfile? = null

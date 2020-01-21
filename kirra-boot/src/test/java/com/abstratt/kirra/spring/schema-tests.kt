@@ -6,6 +6,7 @@ import com.abstratt.kirra.TypeRef
 import com.abstratt.kirra.pojo.getTypeRef
 import com.abstratt.kirra.spring.testing.sample.*
 import com.abstratt.kirra.spring.userprofile.UserProfile
+import com.abstratt.kirra.pojo.Named
 import org.apache.commons.lang3.StringUtils
 import org.junit.Assert.*
 import org.junit.Test

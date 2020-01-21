@@ -23,7 +23,7 @@ open class KirraAppFlywayTestingConfiguration {
 }
 
 
-@Configuration()
+@Configuration
 @KirraApplicationConfiguration(basePackageClasses = [UserProfileMarker::class, KirraSpringMarker::class, KirraSpringAPIMarker::class, SampleMarker::class])
 @PropertySource("classpath:application.properties")
 open class TestConfig {

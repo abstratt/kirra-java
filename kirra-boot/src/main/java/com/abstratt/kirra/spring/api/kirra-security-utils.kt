@@ -1,5 +1,6 @@
 package com.abstratt.kirra.spring.api
 
+import com.abstratt.kirra.pojo.IRoleEntity
 import com.abstratt.kirra.spring.user.RoleEntity
 import com.abstratt.kirra.spring.user.RoleService
 import com.abstratt.kirra.spring.userprofile.UserProfile
@@ -13,7 +14,7 @@ import kotlin.reflect.KClass
 interface SecurityService {
     fun <R : RoleEntity> getCurrentUserAs(roleEntityClass: KClass<R>): R?
     fun getCurrentUser(): UserProfile?
-    fun getCurrentUserRoles(): List<RoleEntity>?
+    fun getCurrentUserRoles(): List<IRoleEntity>?
     fun getCurrentUsername(): String?
 }
 

@@ -112,7 +112,7 @@ open class OrderService : BaseService<Order, OrderRepository>(Order::class) {
     open fun byStatus(toMatch : OrderStatus) = repository.findAllByStatus(toMatch)
 
     @DomainAccessor
-    fun addItem_product(order : Order, pageRequest: PageRequest?) : Page<Product> =
+    fun addItem_product(order : Order, pageRequest: PageRequest?) :Page<Product> =
         productRepository.findAllByAvailableIsTrue(pageRequest)
 }
 

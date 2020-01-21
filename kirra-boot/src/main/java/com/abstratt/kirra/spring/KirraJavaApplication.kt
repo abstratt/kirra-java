@@ -4,6 +4,7 @@ import com.abstratt.kirra.spring.user.UserRole
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.autoconfigure.domain.EntityScan
+import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.Configuration
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories
@@ -18,13 +19,13 @@ abstract class KirraJavaApplication {
     }
 }
 
-fun <C : KirraJavaApplication> runApplication(clazz : KClass<C>, args : Array<String>) {
+fun <C : KirraJavaApplication> runApplication(clazz : KClass<C>, args : Array<String>): ConfigurableApplicationContext? {
     val springApplication = SpringApplication(clazz.java)
 /*
     val commonProperties = PropertiesLoaderUtils.loadProperties(ClassPathResource(COMMON_PROPERTIES, clazz.java.classLoader))
     springApplication.setDefaultProperties(commonProperties)
 */
-    springApplication.run(*args)
+    return springApplication.run(*args)
 }
 
 

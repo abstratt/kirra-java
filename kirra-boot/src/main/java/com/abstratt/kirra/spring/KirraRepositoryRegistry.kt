@@ -1,5 +1,7 @@
 package com.abstratt.kirra.spring
 
+import com.abstratt.kirra.pojo.IBaseEntity
+import com.abstratt.kirra.spring.boot.KirraSpringMetamodel
 import com.abstratt.kirra.spring.user.GenericRoleEntityRepository
 import com.abstratt.kirra.spring.user.RoleEntity
 import org.slf4j.LoggerFactory
@@ -31,7 +33,7 @@ class KirraRepositoryRegistry {
     private lateinit var entityManager : EntityManager
 
 
-    fun <E : BaseEntity> getRepository(entityName : String) : BaseRepository<E>? {
+    fun <E : IBaseEntity> getRepository(entityName : String) : BaseRepository<E>? {
         val repositoryName = "${entityName.decapitalize()}Repository"
         val repository =
             try {
@@ -42,12 +44,12 @@ class KirraRepositoryRegistry {
         return repository
     }
 
-    fun <T : BaseEntity> findOrCreateRepository(name: String, entityClass : KClass<T>): JpaRepository<T, Long> {
+    fun <T : IBaseEntity> findOrCreateRepository(name: String, entityClass : KClass<T>): JpaRepository<T, Long> {
         val existingRepository = getRepository<T>(name)
         return existingRepository ?: createGenericRepository(entityClass, entityManager)
     }
 
-    private fun <T : BaseEntity> createGenericRepository(entityClass: KClass<T>, entityManager: EntityManager): GenericRepository<T> {
+    private fun <T : IBaseEntity> createGenericRepository(entityClass: KClass<T>, entityManager: EntityManager): GenericRepository<T> {
         throw IllegalStateException("Missing repository for ${entityClass.simpleName}")
         return if (entityClass.isSubclassOf(RoleEntity::class))
             GenericRoleEntityRepository(entityClass as KClass<RoleEntity>, entityManager) as GenericRepository<T>

@@ -1,4 +1,4 @@
-package com.abstratt.kirra.spring
+package com.abstratt.kirra.pojo
 
 import com.abstratt.kirra.Relationship
 import java.time.LocalDate
@@ -35,9 +35,14 @@ annotation class Domain (
     val accessor : String
 )
 
-
 @Target(AnnotationTarget.FUNCTION)
 annotation class ImplementationOp
 
 @Target(AnnotationTarget.PROPERTY)
 annotation class MnemonicProperty
+
+@Target(AnnotationTarget.CLASS)
+annotation class EntityClass
+
+@Target(AnnotationTarget.CLASS)
+annotation class ServiceClass

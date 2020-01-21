@@ -9,6 +9,14 @@ import javax.persistence.MappedSuperclass
 abstract class BaseEntity(
     @Id @GeneratedValue open var id: Long? = null
 ) : IBaseEntity {
+
+    override fun assignInstanceId(newInstanceId: Long?) {
+        this.id = newInstanceId
+    }
+
+    override val instanceId: Long?
+        get() = id
+
     override fun equals(other: Any?): Boolean {
         val basicCheck = super.equals(other)
         if (basicCheck) {
