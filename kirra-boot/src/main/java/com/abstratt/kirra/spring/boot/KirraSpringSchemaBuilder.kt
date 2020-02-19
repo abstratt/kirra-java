@@ -93,7 +93,7 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
         setName(newEntity, ClassNameProvider(entityAsKotlinClass))
         newEntity.namespace = namespaceName
         val storedProperties = this.buildStoredProperties(entityType, tmpObject)
-        val derivedProperties = entityAsKotlinClass.memberProperties.filter { it.javaField == null && !(it is KMutableProperty<*>) }.map { buildDerivedProperty(it, tmpObject) }
+        val derivedProperties = entityAsKotlinClass.memberProperties.filter { it.javaField == null && !(it is KMutableProperty<*>) }.map { buildDerivedProperty(it, tmpObject) }.filterNotNull()
         val allProperties = storedProperties + derivedProperties
         newEntity.properties = allProperties
 
@@ -234,16 +234,29 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
     }
 
     private fun buildStoredProperties(entityType: EntityType<*>, tmpObject: Any): List<Property> {
-        return kirraSpringMetamodel.getAttributes(entityType).map { this.buildStoredProperty(it, tmpObject) }
+        return kirraSpringMetamodel.getAttributes(entityType).map { this.buildStoredProperty(it, tmpObject) }.filterNotNull()
     }
 
-    private fun buildStoredProperty(attribute: Attribute<*, *>, tmpObject : Any): Property {
+    private fun buildStoredProperty(attribute: Attribute<*, *>, tmpObject : Any): Property? {
         val javaMember = attribute.javaMember
-        val kotlinElement = (if (javaMember is Field) javaMember.kotlinProperty else if (javaMember is Method) javaMember.kotlinFunction else null) as KCallable
+        val kotlinElement = (
+                if (javaMember is Field)
+                    javaMember.kotlinProperty
+                else if (javaMember is Method)
+                    javaMember.kotlinFunction
+                else
+                    null
+            ) as KCallable
+
+        if (kotlinElement.isImplementationDetail()) {
+            return null
+        }
+
         val hasDefault = javaMember is Field && javaMember.kotlinProperty?.visibility == KVisibility.PUBLIC && javaMember.kotlinProperty?.call(tmpObject) != null
 
         val property = Property()
-        setName(property, CallableNameProvider(kotlinElement))
+        val propertyName = CallableNameProvider(kotlinElement)
+        setName(property, propertyName)
         property.typeRef = getTypeRef(KotlinJPAProperty(attribute, (if (javaMember is Field) (javaMember.kotlinProperty!!) else (javaMember as Method).kotlinFunction!!)))
         if (property.typeRef.kind == TypeRef.TypeKind.Enumeration) {
             property.enumerationLiterals = buildPropertyEnumerationLiterals(attribute, getJavaType(attribute) as Class<Enum<*>>).associateBy { it.name }
@@ -262,9 +275,16 @@ class KirraSpringSchemaBuilder : SchemaBuilder {
         return property
     }
 
-    private fun buildDerivedProperty(kProperty : KProperty<*>, tmpObject : Any): Property {
+    private fun KCallable<Any?>.isImplementationDetail() =
+            this.findAnnotation<ImplementationDetail>() != null
+
+    private fun buildDerivedProperty(kProperty : KProperty<*>, tmpObject : Any): Property? {
         val javaMember = kProperty.javaGetter
         val kotlinElement = kProperty
+
+        if (kotlinElement.isImplementationDetail()) {
+            return null
+        }
         val property = Property()
         setName(property, CallableNameProvider(kotlinElement))
         property.typeRef = getTypeRef(KotlinDerivedProperty(kProperty))

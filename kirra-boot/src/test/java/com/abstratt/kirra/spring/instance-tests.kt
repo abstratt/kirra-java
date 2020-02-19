@@ -20,36 +20,55 @@ open class InstanceTests : TestBase() {
     }
 
     @Test
+    fun testMatchOperation() {
+            val orderEntity = schema.allEntities.find { it.name == Order::class.simpleName }!!
+            val addItemAction = orderEntity.operations.find { it.name == Order::addItem.name }!!
+            val customer = createCustomer("customer1")
+            val category = createCategory("category1")
+            val product = createProduct("product1", 200.0, category)
+            val order = createOrder(customer)
+            val match = instanceManagement.matchOperation(addItemAction, order.id.toExternalId(), listOf(product), emptyMap())
+            assertNotNull(match)
+        }
+
+
+    @Test
     fun testGetParameterDomain() {
         val orderEntity = schema.allEntities.find { it.name == Order::class.simpleName }!!
         val addItemAction = orderEntity.operations.find { it.name == Order::addItem.name }!!
         val productParameter = addItemAction.parameters.find { it.name == "product" }!!
 
-        val customer = customerService.create(Customer().apply { name = "customer1" })
-        val category = categoryService.create(Category().apply { name = "category1" })
-        val order = orderService.create(
-            Order().apply {
-                this.customer = customer
-            }
-        )
-        val product1 = productService.create(Product().apply {
-                name = "product1"
-                price = 10.0
-                this.category = category
-            }
-        )
-        val product2 = productService.create(
-            Product().apply {
-                name = "product2"
-                price = 10.0
-                this.category = category
-                available = false
-            }
-        )
+        val customer = createCustomer("customer1")
+        val category = createCategory("category1")
+        val order = createOrder(customer)
+        val product1 = createProduct("product1", 200.0, category)
+        val product2 = createProduct("product2", 10.0, category, false)
+
         val addItemProductDomain = instanceManagement.getParameterDomain(orderEntity, order.id.toExternalId(), addItemAction, productParameter)
         assertNotNull(addItemProductDomain.find { it.objectId == product1.id.toExternalId() })
         assertNull(addItemProductDomain.find { it.objectId == product2.id.toExternalId() })
     }
+
+    private fun createCategory(categoryName: String) =
+                    categoryService.create(Category().apply { name = categoryName })
+    private fun createCustomer(name: String) = customerService.create(Customer().apply { this.name = name })
+    private fun createOrder(customer: Customer): Order {
+            return orderService.create(
+                            Order().apply {
+                                    this.customer = customer
+                                }
+                            )
+        }
+
+    private fun createProduct(name : String, price : Double, category: Category, available : Boolean = true): Product {
+            return productService.create(Product().apply {
+                    this.name = name
+                    this.price = price
+                    this.category = category
+                    this.available = available
+                })
+        }
+
 
     private fun Long?.toExternalId(): String? = kirraSpringBridge.toExternalId(this)
 }

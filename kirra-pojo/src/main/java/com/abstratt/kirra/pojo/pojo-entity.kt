@@ -3,7 +3,9 @@ package com.abstratt.kirra.pojo
 import kotlin.reflect.KProperty1
 
 interface IBaseEntity {
+    @ImplementationDetail
     val instanceId : Long?
+    @ImplementationDetail
     fun assignInstanceId(newInstanceId : Long?)
 }
 interface IInstancePage<T : IBaseEntity> {

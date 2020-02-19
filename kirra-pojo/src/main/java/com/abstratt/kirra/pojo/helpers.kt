@@ -1,5 +1,7 @@
 package com.abstratt.kirra.pojo
 
+import com.abstratt.kirra.Entity
+import com.abstratt.kirra.Schema
 import com.abstratt.kirra.TypeRef
 import org.apache.commons.lang3.StringUtils
 import java.lang.reflect.AccessibleObject
@@ -42,11 +44,11 @@ fun <T : Annotation> KClass<*>.hasAnnotation(annotationClass : KClass<T>): Boole
     if (this.isCompanion)
         return this.java.enclosingClass.kotlin.hasAnnotation(annotationClass)
     val annotations = this.annotations
-    val hasEntityAnnotation = annotations.findAnnotationByType(annotationClass) != null
-    if (hasEntityAnnotation != null)
+    val hasAnnotation = annotations.findAnnotationByType(annotationClass) != null
+    if (hasAnnotation != null)
         return true
-    val extendsEntity = this.superclasses.any { it.hasAnnotation(annotationClass) }
-    return extendsEntity
+    val inheritsAnnotation = this.superclasses.any { it.hasAnnotation(annotationClass) }
+    return inheritsAnnotation
 }
 
 fun <C, T> Annotation.getValue(property: KProperty1<C, T>): T? {
@@ -74,4 +76,12 @@ fun <T : Annotation> KClass<*>.isAnnotatedWith(annotationClass : KClass<T>): Boo
         return true
     val extendsEntity = this.superclasses.any { it.isAnnotatedWith(annotationClass) }
     return extendsEntity
+}
+
+class SchemaBrowser(val schema : Schema) {
+    fun findEntity(name : String) : Entity? {
+        val (namespaceName, entityName) = name.split(".")
+        val namespace = schema.findNamespace(namespaceName)
+        return namespace?.findEntity(entityName)
+    }
 }

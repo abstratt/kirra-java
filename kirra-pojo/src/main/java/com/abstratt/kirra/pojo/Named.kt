@@ -38,6 +38,12 @@ annotation class Domain (
 @Target(AnnotationTarget.FUNCTION)
 annotation class ImplementationOp
 
+/**
+ * Marks an element that should not be exposed in the Kirra model.
+ */
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY)
+annotation class ImplementationDetail
+
 @Target(AnnotationTarget.PROPERTY)
 annotation class MnemonicProperty
 

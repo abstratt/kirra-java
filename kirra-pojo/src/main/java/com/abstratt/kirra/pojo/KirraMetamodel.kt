@@ -166,7 +166,7 @@ abstract open class KirraMetamodel() {
         return null
     }
 
-    private fun getRelationshipAccessorInService(entityService: IBaseService<IBaseEntity>?, relationship: Relationship): KFunction<IBaseEntity>? {
+    private fun <T : IBaseEntity> getRelationshipAccessorInService(entityService: IBaseService<T>, relationship: Relationship): KFunction<IBaseEntity>? {
         val memberFunctions = findMemberFunctions(entityService)
         val relationshipAccessor = memberFunctions.firstOrNull {
             it.name == relationship.name && isRelationshipAccessor(it)
@@ -174,7 +174,7 @@ abstract open class KirraMetamodel() {
         return relationshipAccessor as? KFunction<IBaseEntity>
     }
 
-    abstract fun findMemberFunctions(instance: IBaseService<*>?): Iterable<KFunction<*>>
+    abstract fun findMemberFunctions(instance: IBaseService<*>): Iterable<KFunction<*>>
 
     fun getRelationshipAccessors(entityService: IBaseService<IBaseEntity>): List<KFunction<IBaseEntity>> {
         val memberFunctions = findMemberFunctions(entityService)

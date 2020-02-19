@@ -32,7 +32,7 @@ class KirraSpringMetamodel : KirraMetamodel() {
 
     override fun <BS : IBaseService<*>> getDefaultServiceClass(): KClass<BS> = GenericService::class as KClass<BS>
 
-    override fun findMemberFunctions(instance: IBaseService<*>?): Iterable<KFunction<*>> =
+    override fun findMemberFunctions(instance: IBaseService<*>): Iterable<KFunction<*>> =
             AopUtils.getTargetClass(instance).kotlin.memberFunctions
 
     override fun getEntityService(typeRef: TypeRef) : IBaseService<IBaseEntity>? {

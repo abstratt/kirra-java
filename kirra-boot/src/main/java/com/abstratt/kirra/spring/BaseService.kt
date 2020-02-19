@@ -33,13 +33,13 @@ abstract class BaseService<T : IBaseEntity, R : JpaRepository<T, Long>>(open val
     override fun create(toCreate: T): T {
         toCreate.assignInstanceId(null)
         val savedInstance = repository.save(toCreate)
-        return repository.getOne(savedInstance.instanceId)
+        return repository.getOne(savedInstance.instanceId!!)
     }
 
     @Transactional
     override fun update(toUpdate: T): T? {
         checkNotNull(toUpdate.instanceId, { "id was missing" })
-        val existingInstance = repository.findById(toUpdate.instanceId)
+        val existingInstance = repository.findById(toUpdate.instanceId!!)
         if (!existingInstance.isPresent)
             return null
         return repository.save(toUpdate)

@@ -45,7 +45,7 @@ open class UserProfileService : BaseService<UserProfile, UserProfileRepository>(
 
     @Transactional
     override fun update(toUpdate: UserProfile): UserProfile? {
-        val existingInstance = repository.findById(toUpdate.id)
+        val existingInstance = repository.findById(toUpdate.id!!)
         if (existingInstance.isPresent) {
             if (toUpdate.readPassword() != null) {
                 existingInstance.get().updatePassword(toUpdate.readPassword()!!)

@@ -2,20 +2,24 @@
 <project>
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.abstratt.kirra</groupId>
-	<artifactId>kirra-boot-base</artifactId>
+	<artifactId>kirra-java</artifactId>
 	<version>1.1-SNAPSHOT</version>
 
 	<packaging>pom</packaging>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <kotlin.version>1.2.40</kotlin.version>
-        <spring.version>5.0.5.RELEASE</spring.version>
-        <spring-boot.version>2.0.1.RELEASE</spring-boot.version>
-		<hibernate.version>5.2.16.Final</hibernate.version>
+        <kotlin.version>1.3.61</kotlin.version>
+        <spring.version>5.2.4.RELEASE</spring.version>
+        <spring-boot.version>2.2.4.RELEASE</spring-boot.version>
+		<spring.version>5.2.3.RELEASE</spring.version>
+		<spring-boot.version>2.2.4.RELEASE</spring-boot.version>
+		<jackson.version>2.9.4</jackson.version>
+		<flyway.version>5.2.3</flyway.version>
         <junit.version>4.12</junit.version>
-        <jackson.version>2.9.4</jackson.version>
+		<springfox.version>2.9.2</springfox.version>
         <kirra.version>2.7.201911</kirra.version>
+		<spring-data-jpa.version>2.2.4.RELEASE</spring-data-jpa.version>
     </properties>
 
 	<modules>

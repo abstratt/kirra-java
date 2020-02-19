@@ -30,6 +30,7 @@ enum class Capability(vararg val targets : CapabilityTarget) {
 }
 
 val ALL_CAPABILITIES : Array<Capability> = EnumSet.allOf(Capability::class.java).filter { it != Capability.None }.toTypedArray()
+val ALL_CAPABILITIES_SET = ALL_CAPABILITIES.toSet()
 
 interface AccessConstraints {
     fun allow(vararg rule : Pair<KProperty<*>, (IRoleEntity) -> Boolean>) : Map<KProperty<*>, (IRoleEntity) -> Boolean> =
@@ -68,6 +69,7 @@ fun <E : IBaseEntity, RE : IRoleEntity> constraint(clazz : KClass<E>,
 
 
 inline fun can(vararg capabilities : Capability) = capabilities.toSet()
+inline fun can(capabilities : Iterable<Capability>) = capabilities.toSet()
 
 inline fun <RE: IRoleEntity>roles(vararg roles : KClass<RE>) : Set<KClass<RE>> = roles.toSet()
 

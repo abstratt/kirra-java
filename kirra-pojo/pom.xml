@@ -11,36 +11,9 @@
 
 	<parent>
 		<groupId>com.abstratt.kirra</groupId>
-		<artifactId>kirra-boot-base</artifactId>
+		<artifactId>kirra-java</artifactId>
 		<version>1.1-SNAPSHOT</version>
 	</parent>    
-
-    <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <kotlin.version>1.2.40</kotlin.version>
-        <spring.version>5.0.5.RELEASE</spring.version>
-        <spring-boot.version>2.0.1.RELEASE</spring-boot.version>
-        <hibernate.version>5.2.16.Final</hibernate.version>
-        <junit.version>4.12</junit.version>
-        <jackson.version>2.9.4</jackson.version>
-        <kirra.version>2.7.201911</kirra.version>
-    </properties>
-
-    <repositories>
-	<repository>
-		<id>Abstratt-OSS</id>
-		<name>Abstratt OSS Repo</name>
-		<url>https://dl.bintray.com/abstratt-oss/abstratt-oss/</url>
-		<layout>default</layout>
-		<snapshots>
-			<enabled>true</enabled>
-		</snapshots>
-	</repository>
-    </repositories>
-
-    <pluginRepositories>
-    </pluginRepositories>
-
 
     <dependencies>
         <dependency>
@@ -50,7 +23,7 @@
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
-            <artifactId>kotlin-stdlib</artifactId>
+            <artifactId>kotlin-stdlib-jdk8</artifactId>
             <version>${kotlin.version}</version>
         </dependency>
         <dependency>

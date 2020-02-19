@@ -14,9 +14,10 @@ import org.springframework.transaction.annotation.Transactional
 import java.lang.reflect.Method
 import javax.persistence.EntityManager
 import kotlin.reflect.KClass
+import kotlin.reflect.KFunction
 import kotlin.reflect.KProperty1
-import kotlin.reflect.full.memberProperties
-import kotlin.reflect.full.isSubclassOf
+import kotlin.reflect.full.*
+import kotlin.reflect.jvm.javaMethod
 
 @Service
 @Transactional
@@ -121,15 +122,17 @@ open class KirraSpringInstanceManagement (
         val boundMethod = actualMethod
 
         val offset = if (operation.isInstanceOperation && isServiceMethod) 1 else 0
-        var actualParameterIndex = -1
-        val kotlinMatchedModelArguments = matchedModelArguments.map { namedValue ->
-            val index = operation.parameters.indexOfFirst { it.name == namedValue.key }
-            KirraException.ensure(index >= 0, KirraException.Kind.ELEMENT_NOT_FOUND, { "Missing parameter: ${namedValue.key}" })
-            val kirraParameter = operation.parameters[index]
-            val ktParameter = boundMethod.parameters[offset + ++actualParameterIndex]
-            val ktValue = namedValue.value
-            Pair(ktParameter!!, ktValue)
-        }
+        var actualParameterIndex = 0
+        val kotlinMatchedModelArguments = operation.parameters.mapIndexed { index, parameter ->
+                val ktValue = matchedModelArguments[parameter.name]
+                KirraException.ensure(ktValue != null || !parameter.isRequired, KirraException.Kind.ELEMENT_NOT_FOUND, { "Missing value for required parameter: ${parameter.name}" })
+                if (ktValue == null) {
+                        null
+                    } else {
+                        val ktParameter = boundMethod.parameters[offset + ++actualParameterIndex]
+                        Pair(ktParameter!!, ktValue)
+                    }
+            }.filterNotNull()
 
         val kotlinMatchedImplArguments = customImplArguments.map { namedImplArgument ->
             Pair(boundMethod.parameters[++actualParameterIndex], namedImplArgument.value)
@@ -161,7 +164,7 @@ open class KirraSpringInstanceManagement (
         return Pair(javaInstance!!, result)
     }
 
-    protected fun matchOperation(operation: Operation, externalId: String?, arguments: MutableList<*>?, customImplArguments: Map<String, Any?>): Triple<IBaseEntity?, Map<String, Any?>, Pair<Any?, Method>> {
+    fun matchOperation(operation: Operation, externalId: String?, arguments: List<*>?, customImplArguments: Map<String, Any?>): Triple<IBaseEntity?, Map<String, Any?>, Pair<Any?, Method>> {
         val kirraEntity = schemaManagement.getEntity(operation.owner)
         val entityClass: Class<IBaseEntity> = kirraMetamodel.getEntityClass(kirraEntity.entityNamespace, kirraEntity.name)!!
         val service = getEntityService(operation.owner)
@@ -171,15 +174,24 @@ open class KirraSpringInstanceManagement (
         val matchedModelArguments = matchArguments(arguments, operation)
         val matchedArguments = matchedModelArguments + customImplArguments
 
+        // for a service, we include the target instance as a parameter
+        val serviceMatchedArguments = if (operation.isInstanceOperation)
+                mapOf("_target" to entityInstance) + matchedArguments
+        else
+            matchedArguments
+
+
         // it will be null if the service does not have a function matching the Kirra operation name
         val serviceImplClass = AopUtils.getTargetClass(service)
 
-        val serviceImplementationMethod = findMatchingMethod(serviceImplClass.kotlin, operation.name, matchedArguments)
+        val serviceImplementationMethod = findMatchingMethod(serviceImplClass.kotlin, operation.name, serviceMatchedArguments)
         // we need the proxy function though
         val serviceMethod = serviceImplementationMethod?.let { impl ->
-            service::class.java.methods.find {
-                // same name and parameter types
-                it.name == operation.name && it.parameterTypes.toList() == impl!!.parameterTypes.toList()
+                // find the proxy method with same name and signature
+                service::class.java.methods.filter {
+                        it.name == operation.name
+                    }.find {
+                        it.parameterTypes.toList() == impl!!.parameterTypes.toList()
             }
         }
 
@@ -195,28 +207,28 @@ open class KirraSpringInstanceManagement (
     }
 
     protected fun findMatchingMethod(kClass: KClass<out Any>, operationName: String?, matchedArguments: Map<String, Any?>): Method? {
-        val matchingName = kClass.java.methods.filter { it.name == operationName }
-        return matchingName.find { canInvokeWith(it, matchedArguments) }
+        val matchingName = kClass.functions.filter { it.name == operationName }
+        return matchingName.find { canInvokeWith(it, matchedArguments) }?.javaMethod
     }
 
     /**
      * Can invoke a function if all required parameters have matching arguments, and
      * all arguments are expected (by name and type).
      */
-    protected fun canInvokeWith(toCall: Method, matchedArguments: Map<String, Any?>): Boolean {
-        val requiredParameters = toCall.parameters
-        if (matchedArguments.size != requiredParameters.size) {
-            return false
-        }
-        matchedArguments.toList().forEachIndexed { index, argument ->
-            if (!requiredParameters[index].type.kotlin.isInstance(argument.second)) {
+
+    protected fun canInvokeWith(toCall: KFunction<*>, matchedArguments: Map<String, Any?>): Boolean {
+        val parameters = toCall.valueParameters
+        val requiredParameters = parameters.filter { !it.isOptional }
+        requiredParameters.forEach {
+            val argument = matchedArguments[it.name]
+            if (argument == null || !it.type.isSupertypeOf(argument::class.starProjectedType)) {
                 return false
             }
         }
         return true
     }
 
-    protected fun matchArguments(arguments: MutableList<*>?, operation: Operation): Map<String, Any?> {
+    protected fun matchArguments(arguments: List<*>?, operation: Operation): Map<String, Any?> {
         return arguments!!
                 .mapIndexed { i, argument ->
                     Pair(

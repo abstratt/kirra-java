@@ -91,7 +91,7 @@ class Order(id: Long? = null) : BaseEntity(id) {
     var items: MutableCollection<OrderItem> = ArrayList()
 
     @ActionOp
-    fun addItem(product: Product, quantity: Int): OrderItem {
+    fun addItem(product: Product, quantity: Int = 1): OrderItem {
         val newItem = OrderItem(order = this, product = product, quantity = quantity)
         items.add(newItem)
         return newItem
