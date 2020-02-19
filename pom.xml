@@ -22,6 +22,18 @@
 		<spring-data-jpa.version>2.2.4.RELEASE</spring-data-jpa.version>
     </properties>
 
+	<repositories>
+		<repository>
+			<id>Abstratt-OSS</id>
+			<name>Abstratt OSS Repo</name>
+			<url>https://dl.bintray.com/abstratt-oss/abstratt-oss/</url>
+			<layout>default</layout>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
+	</repositories>
+
 	<modules>
 		<module>kirra-pojo</module>
 		<module>kirra-boot</module>	
