@@ -2,6 +2,7 @@ package com.abstratt.kirra.spring
 
 import com.abstratt.kirra.*
 import com.abstratt.kirra.pojo.IBaseEntity
+import com.abstratt.kirra.pojo.IBaseService
 import com.abstratt.kirra.spring.api.SecurityService
 import com.abstratt.kirra.spring.boot.KirraSpringMetamodel
 import org.slf4j.LoggerFactory
@@ -9,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.EnableTransactionManagement
 import javax.persistence.EntityManager
 import javax.persistence.EntityManagerFactory
@@ -22,12 +24,12 @@ open class KirraSpringConfiguration {
     companion object {
         private val logger = LoggerFactory.getLogger(KirraSpringConfiguration::class.java.name)
 
+        /* This is contributed here to introduce some strict ordering and avoid cycles. */
         @Bean
         @Autowired
         fun schema(schemaBuilder: SchemaBuilder) : Schema =
                 schemaBuilder.build()
     }
-
 
     @Autowired
     private lateinit var entityManagerFactory: EntityManagerFactory
@@ -63,11 +65,15 @@ open class KirraSpringConfiguration {
     }
 
     private fun createService(entity: Entity) {
+        val entityRef = entity.typeRef
         val serviceName = entity.name.decapitalize() + "Service"
-        val existingService = applicationContext.beanFactory.getSingleton(serviceName)
-        if (existingService == null) {
-            logger.info("Creating service for ${entity.name} as ${serviceName}")
-            val entityJavaClass = kirraSpringMetamodel.getEntityClass(entity.entityNamespace, entity.name)
+        val entityJavaClass = kirraSpringMetamodel.getEntityClass(entityRef)
+        val serviceJavaClass : KClass<IBaseService<*>> = kirraSpringMetamodel.getEntityServiceClass(entityRef)
+
+        val existingServiceBeanNames = applicationContext.beanFactory.getBeanNamesForType(serviceJavaClass.java, false, false)
+
+        if (existingServiceBeanNames.isEmpty()) {
+            logger.info("Creating generic service for ${entity.name} as ${serviceName}")
             assert(entityJavaClass != null, { "No entity class for ${entity.typeRef}"})
             val entityClass : KClass<IBaseEntity> = entityJavaClass!!.kotlin
             val genericService = GenericService(entityClass)
@@ -76,7 +82,7 @@ open class KirraSpringConfiguration {
             applicationContext.beanFactory.registerSingleton(serviceName, genericService)
             logger.debug("Service created for ${entity.name}")
         } else {
-            logger.debug("No service created for ${entity.name}")
+            logger.debug("No service created for ${entity.name}, as custom implementation(s) '${existingServiceBeanNames}' exist(s)")
         }
     }
 }

@@ -165,8 +165,9 @@ open class KirraSpringInstanceManagement (
     }
 
     fun matchOperation(operation: Operation, externalId: String?, arguments: List<*>?, customImplArguments: Map<String, Any?>): Triple<IBaseEntity?, Map<String, Any?>, Pair<Any?, Method>> {
-        val kirraEntity = schemaManagement.getEntity(operation.owner)
-        val entityClass: Class<IBaseEntity> = kirraMetamodel.getEntityClass(kirraEntity.entityNamespace, kirraEntity.name)!!
+        val owner = operation.owner
+        val kirraEntity = schemaManagement.getEntity(owner)
+        val entityClass: Class<IBaseEntity> = kirraMetamodel.getEntityClass(owner)!!
         val service = getEntityService(operation.owner)
 
         val entityInstance = externalId?.let { service.findById(it.toLong()) }
@@ -268,7 +269,8 @@ open class KirraSpringInstanceManagement (
 
     @Transactional(readOnly = true, propagation = Propagation.REQUIRED)
     override fun newInstance(namespace: String, entityName: String): Instance {
-        val entityClass : Class<IBaseEntity>? = kirraMetamodel.getEntityClass(namespace, entityName)
+        val typeRef = TypeRef(namespace, entityName, TypeRef.TypeKind.Entity)
+        val entityClass : Class<IBaseEntity>? = kirraMetamodel.getEntityClass(typeRef)
         KirraException.ensure(entityClass != null, KirraException.Kind.ENTITY, { "${namespace}.${entityName}"})
         val toConvert = entityClass!!.newInstance()
         return instanceBridge.toInstance(toConvert, InstanceManagement.DataProfile.Full)

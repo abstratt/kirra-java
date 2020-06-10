@@ -1,5 +1,6 @@
 package com.abstratt.kirra.spring
 
+import com.abstratt.easyalpha.cart.ShoppingCartMarker
 import com.abstratt.kirra.spring.api.KirraSpringAPIMarker
 import com.abstratt.kirra.spring.testing.sample.SampleMarker
 import com.abstratt.kirra.spring.userprofile.UserProfileMarker
@@ -24,7 +25,7 @@ open class KirraAppFlywayTestingConfiguration {
 
 
 @Configuration
-@KirraApplicationConfiguration(basePackageClasses = [UserProfileMarker::class, KirraSpringMarker::class, KirraSpringAPIMarker::class, SampleMarker::class])
+@KirraApplicationConfiguration(basePackageClasses = [UserProfileMarker::class, KirraSpringMarker::class, KirraSpringAPIMarker::class, SampleMarker::class, ShoppingCartMarker::class])
 @PropertySource("classpath:application.properties")
 open class TestConfig {
     @Bean

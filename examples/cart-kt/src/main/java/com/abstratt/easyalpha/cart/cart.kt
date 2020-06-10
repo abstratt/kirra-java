@@ -1,14 +1,13 @@
-package com.abstratt.kirra.spring.testing.sample
+
+package com.abstratt.easyalpha.cart
 
 import com.abstratt.kirra.pojo.*
 import com.abstratt.kirra.spring.*
-import com.abstratt.kirra.spring.api.KirraSpringAPIMarker
 import com.abstratt.kirra.spring.user.RoleEntity
 import com.abstratt.kirra.spring.user.RoleEntityService
 import com.abstratt.kirra.spring.user.RoleRepository
 import com.abstratt.kirra.spring.user.UserRole
 import com.abstratt.kirra.spring.userprofile.UserProfile
-import com.abstratt.kirra.spring.userprofile.UserProfileMarker
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
@@ -17,14 +16,18 @@ import org.springframework.stereotype.Repository
 import org.springframework.stereotype.Service
 import javax.persistence.*
 
-interface SampleMarker
+interface ShoppingCartMarker
 
-@KirraApplicationConfiguration(basePackageClasses = [UserProfileMarker::class, KirraSpringMarker::class, KirraSpringAPIMarker::class, SampleApplication::class])
-open class SampleApplication : KirraJavaApplication(SampleRole.values().asIterable())
+enum class ShoppingCartRole : UserRole, ShoppingCartRoleConstants {
+    Employee, Customer, Administrator
+}
 
-
-enum class SampleRole : UserRole {
-    Customer, Employee
+interface ShoppingCartRoleConstants {
+    companion object {
+        const val Employee = "Employee"
+        const val Customer = "Customer"
+        const val Administrator = "Administrator"
+    }
 }
 
 @Entity
@@ -44,7 +47,7 @@ open class CategoryService : BaseService<Category, CategoryRepository>(Category:
 
     @RelationshipAccessor
     fun products(category : Category) : Collection<Product> =
-        productRepository.findAllByCategory(category)
+            productRepository.findAllByCategory(category)
 }
 
 @Entity
@@ -113,7 +116,7 @@ open class OrderService : BaseService<Order, OrderRepository>(Order::class) {
 
     @DomainAccessor
     fun addItem_product(order : Order, pageRequest: PageRequest?) :Page<Product> =
-        productRepository.findAllByAvailableIsTrue(pageRequest)
+            productRepository.findAllByAvailableIsTrue(pageRequest)
 }
 
 @Entity
@@ -127,13 +130,12 @@ abstract class Person(
 
 @Entity
 class Employee(id : Long? = null, name : String? = null, user : UserProfile? = null) : Person(id, name, user) {
-    override fun getRole(): UserRole = SampleRole.Employee
+    override fun getRole(): UserRole = ShoppingCartRole.Employee
 }
 
-@Service
-open class EmployeeService : RoleEntityService<Employee, EmployeeRepository>(Employee::class) {
-    @RelationshipAccessor
-    open fun roleAsEmployee(profile : UserProfile) = findByUser(profile)
+@Entity
+class Administrator(id : Long? = null, name : String? = null, user : UserProfile? = null) : Person(id, name, user) {
+    override fun getRole(): UserRole = ShoppingCartRole.Administrator
 }
 
 @Entity
@@ -141,7 +143,7 @@ class Customer(id : Long? = null, name : String? = null, user : UserProfile? = n
     @OneToMany(orphanRemoval = false, mappedBy = "customer")
     var orders: MutableCollection<Order> = ArrayList()
 
-    override fun getRole(): UserRole = SampleRole.Customer
+    override fun getRole(): UserRole = ShoppingCartRole.Customer
 
     object accessControl : AccessControl<Customer, Person>(
             constraint(
@@ -174,6 +176,20 @@ open class CustomerService : BaseService<Customer, CustomerRepository>(Customer:
     open fun roleAsCustomer(profile : UserProfile) = repository.findByUser(profile)
 }
 
+@Service
+open class EmployeeService : RoleEntityService<Employee, EmployeeRepository>(Employee::class) {
+    @RelationshipAccessor
+    open fun roleAsEmployee(profile : UserProfile) = findByUser(profile)
+}
+
+@Service
+open class AdministratorService : RoleEntityService<Administrator, AdministratorRepository>(Administrator::class) {
+    @RelationshipAccessor
+    open fun roleAsAdministrator(profile : UserProfile) = findByUser(profile)
+}
+
+
+
 @Repository
 interface CustomerRepository : RoleRepository<Customer>
 
@@ -181,10 +197,7 @@ interface CustomerRepository : RoleRepository<Customer>
 interface EmployeeRepository : RoleRepository<Employee>
 
 @Repository
-interface AccountRepository : BaseRepository<Account>
-
-@Repository
-interface TransferRepository : BaseRepository<Transfer>
+interface AdministratorRepository : RoleRepository<Administrator>
 
 @Repository
 interface ProductRepository : BaseRepository<Product> {
@@ -197,29 +210,3 @@ interface ProductRepository : BaseRepository<Product> {
 @Repository
 interface OrderItemRepository : BaseRepository<OrderItem>
 
-@Entity
-class Transfer(
-        id: Long? = null,
-        @ManyToOne
-        var source: Account? = null,
-        @ManyToOne
-        var destination: Account? = null
-) : BaseEntity(id)
-
-@Entity
-class Account(
-        id: Long? = null,
-        @ManyToOne
-        var owner: Customer? = null,
-        var balance: Double? = null,
-        @OneToMany(mappedBy = "source")
-        var sent: Collection<Transfer>? = null,
-        @OneToMany(mappedBy = "destination")
-        var received: Collection<Transfer>? = null,
-        @Enumerated(value = EnumType.STRING)
-        var type: AccountType? = null
-) : BaseEntity(id)
-
-enum class AccountType {
-    Checking, Savings
-}

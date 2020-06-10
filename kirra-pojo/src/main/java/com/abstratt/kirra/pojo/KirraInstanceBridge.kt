@@ -102,7 +102,8 @@ abstract class KirraInstanceBridge {
         if (newInstance == null) {
             return null
         }
-        val javaClass = kirraMetamodel.getEntityClass(newInstance.entityNamespace, newInstance.entityName) as? Class<E>
+        val typeRef = newInstance.typeRef
+        val javaClass = kirraMetamodel.getEntityClass(typeRef) as? Class<E>
         KirraException.ensure(javaClass != null, KirraException.Kind.INTERNAL, { "No entity class found for ${newInstance.typeRef}" })
         val javaInstance = javaClass!!.newInstance()!!
         if (!newInstance.isNew) {

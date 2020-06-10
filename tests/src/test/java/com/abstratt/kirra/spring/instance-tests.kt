@@ -1,7 +1,7 @@
 package com.abstratt.kirra.spring
 
+import com.abstratt.easyalpha.cart.*
 import com.abstratt.kirra.InstanceManagement
-import com.abstratt.kirra.spring.testing.sample.*
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test

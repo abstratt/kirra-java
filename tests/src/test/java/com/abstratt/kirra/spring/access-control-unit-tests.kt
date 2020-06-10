@@ -1,9 +1,9 @@
 package com.abstratt.kirra.spring
 
+import com.abstratt.easyalpha.cart.Customer
+import com.abstratt.easyalpha.cart.Employee
+import com.abstratt.easyalpha.cart.Order
 import com.abstratt.kirra.pojo.*
-import com.abstratt.kirra.spring.testing.sample.Customer
-import com.abstratt.kirra.spring.testing.sample.Employee
-import com.abstratt.kirra.spring.testing.sample.Order
 import org.junit.Assert
 import org.junit.Test
 

@@ -1,9 +1,9 @@
 package com.abstratt.kirra.spring
 
+import com.abstratt.easyalpha.cart.Category
+import com.abstratt.easyalpha.cart.Customer
+import com.abstratt.easyalpha.cart.ShoppingCartRole
 import com.abstratt.kirra.pojo.getTypeRef
-import com.abstratt.kirra.spring.testing.sample.Category
-import com.abstratt.kirra.spring.testing.sample.Customer
-import com.abstratt.kirra.spring.testing.sample.SampleRole
 import com.abstratt.kirra.spring.userprofile.UserProfile
 import org.junit.Assert
 import org.junit.Test
@@ -16,7 +16,7 @@ open class AccessControlTests : TestBase() {
         Assert.assertNotNull(currentUser)
         val roles = securityService.getCurrentUserRoles()
         Assert.assertNotNull(roles)
-        Assert.assertTrue(roles!!.any { it.getRole() == SampleRole.Employee })
+        Assert.assertTrue(roles!!.any { it.getRole() == ShoppingCartRole.Employee })
     }
 
     @Test
@@ -26,7 +26,7 @@ open class AccessControlTests : TestBase() {
         Assert.assertNotNull(currentUser)
         val roles = securityService.getCurrentUserRoles()
         Assert.assertNotNull(roles)
-        Assert.assertTrue(roles!!.any { it.getRole() == SampleRole.Customer })
+        Assert.assertTrue(roles!!.any { it.getRole() == ShoppingCartRole.Customer })
     }
 
     @Test

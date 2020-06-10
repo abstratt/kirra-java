@@ -19,6 +19,7 @@
         <junit.version>4.12</junit.version>
 		<springfox.version>2.9.2</springfox.version>
         <kirra.version>2.7.201911</kirra.version>
+		<kirra-boot.version>${project.version}</kirra-boot.version>
 		<spring-data-jpa.version>2.2.4.RELEASE</spring-data-jpa.version>
     </properties>
 
@@ -36,7 +37,9 @@
 
 	<modules>
 		<module>kirra-pojo</module>
-		<module>kirra-boot</module>	
+		<module>kirra-boot</module>
+		<module>examples/cart-kt</module>
+		<module>tests</module>
 	</modules>
 
 	<build>

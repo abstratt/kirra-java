@@ -1,12 +1,15 @@
 package com.abstratt.kirra.spring
 
+import com.abstratt.easyalpha.cart.*
 import com.abstratt.kirra.Operation
 import com.abstratt.kirra.Relationship
 import com.abstratt.kirra.TypeRef
-import com.abstratt.kirra.pojo.getTypeRef
-import com.abstratt.kirra.spring.testing.sample.*
-import com.abstratt.kirra.spring.userprofile.UserProfile
 import com.abstratt.kirra.pojo.Named
+import com.abstratt.kirra.pojo.getTypeRef
+import com.abstratt.kirra.spring.testing.sample.Account
+import com.abstratt.kirra.spring.testing.sample.AccountType
+import com.abstratt.kirra.spring.testing.sample.Transfer
+import com.abstratt.kirra.spring.userprofile.UserProfile
 import org.apache.commons.lang3.StringUtils
 import org.junit.Assert.*
 import org.junit.Test
@@ -20,10 +23,11 @@ open class SchemaTests : TestBase() {
     @Test
     fun testClassScanning() {
         val namespaces = schema.namespaces
-        assertEquals(2, namespaces.size)
+        assertEquals(3, namespaces.size)
         namespaces.sortBy { it.name }
-        assertEquals("sample", namespaces[0].name)
-        assertEquals("userprofile", namespaces[1].name)
+        assertEquals("cart", namespaces[0].name)
+        assertEquals("sample", namespaces[1].name)
+        assertEquals("userprofile", namespaces[2].name)
         val entities = namespaces[0].entities
         assertTrue(entities.size >= 1)
         val order = entities.find { it.name == Order::class.simpleName }
@@ -37,7 +41,7 @@ open class SchemaTests : TestBase() {
         val productEntity = entity!!
         val expectedTypeRef = getTypeRef(Product::class.java, TypeRef.TypeKind.Entity)
         assertEquals(expectedTypeRef, productEntity.typeRef)
-        assertEquals("sample", productEntity.entityNamespace)
+        assertEquals("cart", productEntity.entityNamespace)
         assertTrue(productEntity.isTopLevel)
         assertTrue(productEntity.isStandalone)
         assertTrue(productEntity.isInstantiable)

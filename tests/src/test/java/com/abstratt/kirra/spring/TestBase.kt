@@ -1,9 +1,9 @@
 package com.abstratt.kirra.spring
 
+import com.abstratt.easyalpha.cart.*
 import com.abstratt.kirra.Schema
 import com.abstratt.kirra.pojo.IBaseService
 import com.abstratt.kirra.spring.boot.KirraSpringMetamodel
-import com.abstratt.kirra.spring.testing.sample.*
 import com.abstratt.kirra.spring.userprofile.UserProfile
 import org.junit.Before
 import org.junit.runner.RunWith

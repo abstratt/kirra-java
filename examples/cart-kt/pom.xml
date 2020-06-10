@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.abstratt.easyalpha.examples</groupId>
+    <artifactId>cart</artifactId>
+    <version>1.1-SNAPSHOT</version>
+
+    <parent>
+        <groupId>com.abstratt.kirra</groupId>
+        <artifactId>kirra-java</artifactId>
+        <version>1.1-SNAPSHOT</version>
+        <relativePath>../../</relativePath>
+    </parent>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.abstratt.kirra</groupId>
+            <artifactId>kirra-boot</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <artifactId>kotlin-maven-plugin</artifactId>
+                <groupId>org.jetbrains.kotlin</groupId>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+
+            <!--
+                        <plugin>
+                            <groupId>org.apache.maven.plugins</groupId>
+                            <artifactId>maven-surefire-plugin</artifactId>
+                                    <configuration>
+                                        <failIfNoTests>true</failIfNoTests>
+                                        <test>com.abstratt.kirra.rest.tests.AllKirraRESTTests</test>
+                                        <dependenciesToScan>
+                                            <dependency>com.abstratt.kirra:com.abstratt.kirra.rest.tests</dependency>
+                                        </dependenciesToScan>
+                                        <systemPropertyVariables>
+                                            <kirra.uri>http://localhost:8090/app/</kirra.uri>
+                                            <kirra.admin.username>admin1@abstratt.com</kirra.admin.username>
+                                            <kirra.admin.password>pass</kirra.admin.password>
+                                            <kirra.employee.username>employee1@abstratt.com</kirra.employee.username>
+                                            <kirra.employee.password>pass</kirra.employee.password>
+                                            <kirra.realm>demo-cloudfier-examples-expenses-realm</kirra.realm>
+                                        </systemPropertyVariables>
+                                    </configuration>
+                        </plugin>
+            -->
+        </plugins>
+    </build>
+</project>

@@ -81,13 +81,11 @@ abstract open class KirraMetamodel() {
     fun namespaceToPackageName(namespace: String): String = kirraApplication.javaPackages.find { it.endsWith(".${namespace}") }
             ?: namespace
 
-    fun getEntityClass(namespace: String, entityName: String): Class<IBaseEntity>? {
-        val packageName = namespaceToPackageName(namespace)
-        val found = entitiesByPackage[packageName]?.find { it.simpleName == entityName }
+    fun getEntityClass(typeRef: TypeRef) : Class<IBaseEntity>? {
+        val packageName = namespaceToPackageName(typeRef.namespace)
+        val found = entitiesByPackage[packageName]?.find { it.simpleName == typeRef.typeName }
         return found
     }
-
-    fun getEntityClass(typeRef: TypeRef) = getEntityClass(typeRef.namespace, typeRef.typeName)
 
     fun getEnumClass(typeRef: TypeRef): Class<Enum<*>>? {
         val packageName = namespaceToPackageName(typeRef.namespace)

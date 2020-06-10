@@ -45,8 +45,8 @@ abstract class KirraPojoInstanceManagement(val kirraMetamodel: KirraMetamodel, v
             retrieveJavaInstance(typeRef.namespace, typeRef.typeName, externalId)
 
     protected fun retrieveJavaInstance(namespace: String, entityName: String, externalId: String): IBaseEntity? {
-        val entityClass: Class<IBaseEntity>? = kirraMetamodel.getEntityClass(namespace, entityName)
-        val asService: IBaseService<IBaseEntity> = getEntityService(TypeRef(namespace, entityName, TypeRef.TypeKind.Entity))
+        val typeRef = TypeRef(namespace, entityName, TypeRef.TypeKind.Entity)
+        val asService: IBaseService<IBaseEntity> = getEntityService(typeRef)
         val found = asService.findById(externalId.toLong())
         return found
     }
@@ -56,8 +56,8 @@ abstract class KirraPojoInstanceManagement(val kirraMetamodel: KirraMetamodel, v
     }
 
     override fun deleteInstance(entityNamespace: String, entityName: String, id: String) {
-        val entityClass : Class<IBaseEntity>? = kirraMetamodel.getEntityClass(entityNamespace, entityName)
-        val asService : IBaseService<IBaseEntity> = getEntityService(TypeRef(entityNamespace, entityName, TypeRef.TypeKind.Entity))
+        val typeRef = TypeRef(entityNamespace, entityName, TypeRef.TypeKind.Entity)
+        val asService : IBaseService<IBaseEntity> = getEntityService(typeRef)
         asService.delete(id.toLong())
     }
 
@@ -130,8 +130,8 @@ abstract class KirraPojoInstanceManagement(val kirraMetamodel: KirraMetamodel, v
         getInstances(namespace, name, profile)
 
     override fun getInstances(namespace: String, entityName: String, dataProfile: InstanceManagement.DataProfile?): MutableList<Instance> {
-        val entityClass : Class<IBaseEntity>? = kirraMetamodel.getEntityClass(namespace, entityName)
-        val asService : IBaseService<IBaseEntity> = getEntityService(TypeRef(namespace, entityName, TypeRef.TypeKind.Entity))
+        val typeRef = TypeRef(namespace, entityName, TypeRef.TypeKind.Entity)
+        val asService : IBaseService<IBaseEntity> = getEntityService(typeRef)
         val listed = asService.list()
         val elements = listed.instances
         return instanceBridge.toInstances(elements).toMutableList()
