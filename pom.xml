@@ -18,6 +18,7 @@
 		<flyway.version>5.2.3</flyway.version>
         <junit.version>4.12</junit.version>
 		<springfox.version>2.9.2</springfox.version>
+	<abstratt-master.version>4.2.1</abstratt-master.version>
         <kirra.version>2.10.0</kirra.version>
 		<kirra-boot.version>${project.version}</kirra-boot.version>
 		<spring-data-jpa.version>2.2.4.RELEASE</spring-data-jpa.version>
