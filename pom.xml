@@ -42,7 +42,17 @@
 		<module>examples/cart-kt</module>
 		<module>tests</module>
 	</modules>
-
+	
+	<dependencyManagement>
+		<dependencies>
+				<dependency>
+					  <groupId>com.abstratt</groupId>
+					  <artifactId>master</artifactId>
+					  <version>${abstratt-master.version}</version>
+					  <type>pom</type>
+				</dependency>	    
+		</dependencies>
+	</dependencyManagement>
 	<build>
 		<pluginManagement>
 		<plugins>
