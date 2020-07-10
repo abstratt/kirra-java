@@ -16,6 +16,12 @@
 	</parent>    
 
     <dependencies>
+	<dependency>
+	  <groupId>com.abstratt</groupId>
+	  <artifactId>master</artifactId>
+	  <version>${abstratt-master.version}</version>
+	  <type>pom</type>
+	</dependency>	    
         <dependency>
             <groupId>com.abstratt.kirra</groupId>
             <artifactId>com.abstratt.kirra.api</artifactId>
