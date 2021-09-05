@@ -1,12 +1,12 @@
 package com.abstratt.kirra.spring
 
+import jakarta.annotation.PostConstruct
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.env.AbstractEnvironment
 import org.springframework.core.env.EnumerablePropertySource
 import org.springframework.core.env.Environment
 import org.springframework.stereotype.Component
-import javax.annotation.PostConstruct
 
 
 @Component

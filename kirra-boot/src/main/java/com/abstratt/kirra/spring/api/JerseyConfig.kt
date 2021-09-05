@@ -1,9 +1,9 @@
 package com.abstratt.kirra.spring.api;
 
+import jakarta.annotation.PostConstruct
 import org.glassfish.jersey.server.ResourceConfig
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
-import javax.annotation.PostConstruct
 
 @Component
 public class JerseyConfig : ResourceConfig() {
