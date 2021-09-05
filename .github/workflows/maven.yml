@@ -21,6 +21,8 @@ jobs:
       with:
         java-version: '15'
         distribution: 'adopt'
+    - name: show environment
+      run: export    
     - name: Build with Maven
       run: mvn -B package  --batch-mode --fail-at-end --file pom.xml
     - name: Publish Test Report
