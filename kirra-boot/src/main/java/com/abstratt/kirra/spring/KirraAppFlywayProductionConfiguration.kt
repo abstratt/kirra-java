@@ -11,7 +11,6 @@ class KirraAppFlywayProductionConfiguration {
     @Bean
     fun cleanMigrateStrategy(): FlywayMigrationStrategy =
         FlywayMigrationStrategy { flyway ->
-            flyway.isValidateOnMigrate = true
             flyway.migrate()
         }
 }
