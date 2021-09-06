@@ -15,7 +15,7 @@
 		<spring.version>5.3.9</spring.version>
 		<spring-boot.version>2.5.4</spring-boot.version>
 		<jackson.version>2.12.5</jackson.version>
-		<flyway.version>7.14.1</flyway.version>
+		<flyway.version>7.15.0</flyway.version>
         <junit.version>4.13.2</junit.version>
 		<springfox.version>2.9.2</springfox.version>
 	<abstratt-master.version>4.4.0</abstratt-master.version>
