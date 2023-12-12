@@ -122,7 +122,7 @@
         <dependency>
             <groupId>org.glassfish.jersey.core</groupId>
             <artifactId>jersey-server</artifactId>
-            <version>3.0.2</version>
+            <version>3.1.5</version>
             <exclusions>
                 <exclusion>
                     <!-- Hibernate expects version 2+ -->
